@@ -1,3 +1,15 @@
 *.tar.gz
 *.tgz
 *.pdf
+
+cup/
+*.class
+sym.java
+parser.java
+fac.cm
+gcd.cm
+mutual.cm
+sort.cm
+booltest.cm
+Lexer.java*
+C1-Package/*
