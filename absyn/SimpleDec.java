@@ -1,11 +1,10 @@
 package absyn;
 
-public class VarExp extends Exp {
-    public String name;
-
-    public VarExp(int row, int col, String name) {
+public class SimpleDec extends VarDec {
+    public SimpleDec(int row, int col, NameTy type, String name) {
         this.row = row;
         this.col = col;
+        this.type = type;
         this.name = name;
     }
 

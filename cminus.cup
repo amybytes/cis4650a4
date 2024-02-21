@@ -63,13 +63,15 @@ parser code {:
         System.exit(1);
     }
 
+   /* Assume true at the start, but set to false with parsing errors */
+    public static boolean valid = true;
 :};
    
    
 /* ------------Declaration of Terminals and Non Terminals Section----------- */
    
 terminal IF, ELSE, RETURN, VOID, BOOL, INT, WHILE, TRUE, TRUTH;
-terminal LTE, GTE, EQUAL, NEQUAL, OR, AND, ADD, SUBT, MULT, DIV;
+terminal LTE, GTE, EQUAL, NEQUAL, OR, AND, ADD, SUBT, MULT, DIV, UMINUS;
 terminal LT, GT, BNOT, ASSIGN, SEMI, COMMA;
 terminal LPAREN, RPAREN, LSQUARE, RSQUARE, LCURLY, RCURLY;
 terminal ID, NUM;
@@ -90,132 +92,132 @@ start with program;
 
 
 program	            ::= declaration_list
-                       ;
+                      ;
 
-declaration_list     ::= declaration_list declaration
-                       | declaration
-                       ;
+declaration_list    ::= declaration_list declaration
+                      | declaration
+                      ;
 
-declaration          ::= var_declaration
-                       | fun_declaration
-                       | fun_prototype
-                       ;
+declaration         ::= var_declaration
+                      | fun_declaration
+                      | fun_prototype
+                      ;
 
-var_declaration      ::= type_specifier ID SEMI
-                       | type_specifier ID LSQUARE NUM RSQUARE SEMI
-                       ;
+var_declaration     ::= type_specifier ID SEMI
+                      | type_specifier ID LSQUARE NUM RSQUARE SEMI
+                      ;
 
-type_specifier       ::= BOOL | INT | VOID
-                       ;
+type_specifier      ::= BOOL | INT | VOID
+                      ;
 
-fun_declaration      ::= type_specifier ID LPAREN params RPAREN compound_stmt
-                       ;
+fun_declaration     ::= type_specifier ID LPAREN params RPAREN compound_stmt
+                      ;
 
-fun_prototype        ::= type_specifier ID LPAREN params RPAREN SEMI
-                       ;
+fun_prototype       ::= type_specifier ID LPAREN params RPAREN SEMI
+                      ;
 
-params               ::= param_list | VOID
-                       ;
+params              ::= param_list | VOID
+                      ;
 
-param_list           ::= param_list COMMA param
-                       | param
-                       ;
+param_list          ::= param_list COMMA param
+                      | param
+                      ;
 
-param                ::= type_specifier ID
-                       | type_specifier ID LSQUARE RSQUARE
-                       ;
+param               ::= type_specifier ID
+                      | type_specifier ID LSQUARE RSQUARE
+                      ;
 
-compound_stmt        ::= LCURLY local_declarations statement_list RCURLY
-                       ;
+compound_stmt       ::= LCURLY local_declarations statement_list RCURLY
+                      ;
 
-local_declarations   ::= local_declarations var_declaration
-                       |
-                       ;
+local_declarations  ::= local_declarations var_declaration
+                      |
+                      ;
 
-statement_list       ::= statement_list statement
-                       |
-                       ;
+statement_list      ::= statement_list statement
+                      |
+                      ;
 
-statement            ::= expression_stmt
-                       | compound_stmt
-                       | selection_stmt
-                       | iteration_stmt
-                       | return_stmt
-                       ;
+statement           ::= expression_stmt
+                      | compound_stmt
+                      | selection_stmt
+                      | iteration_stmt
+                      | return_stmt
+                      ;
 
-expression_stmt      ::= expression SEMI
-                       | SEMI
-                       ;
+expression_stmt     ::= expression SEMI
+                      | SEMI
+                      ;
 
-selection_stmt       ::= IF LPAREN expression RPAREN statement
-                       | IF LPAREN expression RPAREN statement ELSE statement
-                       ;
+selection_stmt      ::= IF LPAREN expression RPAREN statement
+                      | IF LPAREN expression RPAREN statement ELSE statement
+                      ;
 
-iteration_stmt       ::= WHILE LPAREN expression RPAREN statement
-                       ;
+iteration_stmt      ::= WHILE LPAREN expression RPAREN statement
+                      ;
 
-return_stmt          ::= RETURN expression SEMI
-                       | RETURN SEMI
-                       ;
+return_stmt         ::= RETURN expression SEMI
+                      | RETURN SEMI
+                      ;
 
-expression           ::= var ASSIGN expression
-                       | obool_expression
-                       ;
+expression          ::= var ASSIGN expression
+                      | obool_expression
+                      ;
 
-var                  ::= ID
-                       | ID LSQUARE expression RSQUARE
-                       ;
+var                 ::= ID
+                      | ID LSQUARE expression RSQUARE
+                      ;
 
-obool_expression     ::= obool_expression OR abool_expression
-                       | abool_expression
-                       ;
+obool_expression    ::= obool_expression OR abool_expression
+                      | abool_expression
+                      ;
 
-abool_expression     ::= abool_expression AND ubool_expression
-                       | ubool_expression
-                       ;
+abool_expression    ::= abool_expression AND ubool_expression
+                      | ubool_expression
+                      ;
 
-ubool_expression     ::= BNOT ubool_expression
-                       | simple_expression
-                       ;
+ubool_expression    ::= BNOT ubool_expression
+                      | simple_expression
+                      ;
 
-simple_expression    ::= additive_expression relop additive_expression
-                       | additive_expression
-                       ;
+simple_expression   ::= additive_expression relop additive_expression
+                      | additive_expression
+                      ;
 
-relop                ::= LTE | LT | GT | GTE | EQUAL | NEQUAL
-                       ;
+relop               ::= LTE | LT | GT | GTE | EQUAL | NEQUAL
+                      ;
 
-additive_expression  ::= additive_expression addop term
-                       | term
-                       ;
+additive_expression ::= additive_expression addop term
+                     | term
+                     ;
 
-addop                ::= ADD | SUBT
-                       ;
+addop               ::= ADD | SUBT
+                      ;
 
-term                 ::= term mulop signed_factor
-                       | signed_factor
-                       ;
+term                ::= term mulop signed_factor
+                      | signed_factor
+                      ;
 
-mulop                ::= MULT | DIV
-                       ;
+mulop               ::= MULT | DIV
+                      ;
 
-signed_factor        ::= SUBT signed_factor
-                       | factor
-                       ;
+signed_factor       ::= SUBT signed_factor
+                      | factor
+                      ;
 
-factor               ::= LPAREN expression RPAREN
-                       | var
-                       | call
-                       | NUM
-                       | TRUTH
-                       ;
+factor              ::= LPAREN expression RPAREN
+                      | var
+                      | call
+                      | NUM
+                      | TRUTH
+                      ;
 
-call                 ::= ID LPAREN args RPAREN
-                       ;
+call                ::= ID LPAREN args RPAREN
+                      ;
 
-args                 ::= arg_list
-                       ;
+args                ::= arg_list
+                      ;
 
-arg_list             ::= arg_list COMMA expression
-                       | expression
-                       ;
+arg_list            ::= arg_list COMMA expression
+                      | expression
+                      ;
