@@ -12,12 +12,13 @@ public class Scanner {
         return scanner.next_token();
     }
 
-    public static void main(String argv[]) {
+    public static void main(String[] args) {
         try {
             Scanner scanner = new Scanner(new Lexer(new InputStreamReader(System.in)));
             Symbol tok = null;
-            while((tok=scanner.getNextToken()) != null)
+            while ((tok = scanner.getNextToken()) != null) {
                 System.out.println(sym.terminalNames[tok.sym]);
+            }
         }
         catch (Exception e) {
             System.out.println("Unexpected exception:");

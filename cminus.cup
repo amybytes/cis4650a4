@@ -7,64 +7,34 @@
 /* ----------------------Preliminary Declarations Section--------------------*/
    
 import absyn.*;
-   
-/* Parser code to change the way the parser reports errors (include
-   line and column number of the error). */
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Arrays;
+
 parser code {:
-    
-    /* Change the method report_error so it will display the line and
-       column of where the error occurred in the input as well as the
-       reason for the error which is passed into the method in the
-       String 'message'. */
     public void report_error(String message, Object info) {
-   
-        /* Create a StringBuffer called 'm' with the string 'Error' in it. */
         StringBuffer m = new StringBuffer("Error");
-   
-        /* Check if the information passed to the method is the same
-           type as the type java_cup.runtime.Symbol. */
-        if (info instanceof java_cup.runtime.Symbol) {
-            /* Declare a java_cup.runtime.Symbol object 's' with the
-               information in the object info that is being typecasted
-               as a java_cup.runtime.Symbol object. */
-            java_cup.runtime.Symbol s = ((java_cup.runtime.Symbol) info);
-   
-            /* Check if the line number in the input is greater or
-               equal to zero. */
-            if (s.left >= 0) {                
-                /* Add to the end of the StringBuffer error message
-                   the line number of the error in the input. */
-                m.append(" in line "+(s.left+1));   
-                /* Check if the column number in the input is greater
-                   or equal to zero. */
-                if (s.right >= 0)                    
-                    /* Add to the end of the StringBuffer error message
-                       the column number of the error in the input. */
-                    m.append(", column "+(s.right+1));
+
+        if (info instanceof Absyn) {
+            Absyn obj = (Absyn)info;
+
+            if (obj.row >= 0) {
+                m.append(" in line " + (obj.row + 1));   
+
+                if (obj.col >= 0) {
+                    m.append(", column " + (obj.col + 1));
+                }
             }
         }
    
-        /* Add to the end of the StringBuffer error message created in
-           this method the message that was passed into this method. */
-        m.append(" : "+message);
-   
-        /* Print the contents of the StringBuffer 'm', which contains
-           an error message, out on a line. */
+        m.append(": " + message);
         System.err.println(m);
     }
    
-    /* Change the method report_fatal_error so when it reports a fatal
-       error it will display the line and column number of where the
-       fatal error occurred in the input as well as the reason for the
-       fatal error which is passed into the method in the object
-       'message' and then exit.*/
     public void report_fatal_error(String message, Object info) {
         report_error(message, info);
         System.exit(1);
     }
-
-   /* Assume true at the start, but set to false with parsing errors */
-    public static boolean valid = true;
 :};
    
    
@@ -89,7 +59,6 @@ non terminal Var var;
 non terminal Exp expression, expression_stmt, statement, additive_expression;
 non terminal Exp simple_expression, obool_expression, abool_expression, ubool_expression;
 non terminal ExpList statement_list, arg_list, args;
-// non terminal OpExp obool_expression, abool_expression, ubool_expression;
 non terminal CompoundExp compound_stmt;
 non terminal ReturnExp return_stmt;
 non terminal WhileExp iteration_stmt;
@@ -108,12 +77,17 @@ program	            ::= declaration_list:dl
 
 declaration_list    ::= declaration_list:dl declaration:d
                         {:
-                           DecList t = dl;
-                           while (t.tail != null) {
-                              t = t.tail;
-                           }
-                           t.tail = new DecList(d, null);
-                           RESULT = dl;
+                            DecList t = dl;
+                            while (t.tail != null) {
+                                t = t.tail;
+                            }
+                            t.tail = new DecList(d, null);
+                            if (t.head == null) {
+                                RESULT = t.tail;
+                            }
+                            else {
+                                RESULT = dl;
+                            }
                         :}
                       | declaration:d
                         {: RESULT = new DecList(d, null); :}
@@ -131,6 +105,8 @@ var_declaration     ::= type_specifier:t1 ID:i1 SEMI
                         {: RESULT = new SimpleDec(t1left, t1right, t1, i1); :}
                       | type_specifier:t2 ID:i2 LSQUARE NUM:size RSQUARE SEMI
                         {: RESULT = new ArrayDec(t2left, t2right, t2, i2, Integer.parseInt(size)); :}
+                      | type_specifier ID:i3 error
+                        {: parser.report_error("Invalid variable declaration", i3); :}
                       ;
 
 type_specifier      ::= BOOL:b
@@ -143,6 +119,8 @@ type_specifier      ::= BOOL:b
 
 fun_declaration     ::= type_specifier:f ID:i LPAREN params:p RPAREN compound_stmt:b
                         {: RESULT = new FunctionDec(fleft, fright, f, i, p, b); :}
+                      | type_specifier ID LPAREN:lp error RPAREN compound_stmt
+                        {: parser.report_error("Invalid function declaration", lp); :}
                       ;
 
 fun_prototype       ::= type_specifier:f ID:i LPAREN params:p RPAREN:n SEMI
@@ -157,12 +135,17 @@ params              ::= param_list:pl
 
 param_list          ::= param_list:pl COMMA param:p
                         {:
-                           VarDecList t = pl;
-                           while (t.tail != null) {
-                              t = t.tail;
-                           }
-                           t.tail = new VarDecList(p, null);
-                           RESULT = pl;
+                            VarDecList t = pl;
+                            while (t.tail != null) {
+                                t = t.tail;
+                            }
+                            t.tail = new VarDecList(p, null);
+                            if (t.head == null) {
+                                RESULT = t.tail;
+                            }
+                            else {
+                                RESULT = pl;
+                            }
                         :}
                       | param:p
                         {: RESULT = new VarDecList(p, null); :}
@@ -180,17 +163,17 @@ compound_stmt       ::= LCURLY:c local_declarations:d statement_list:s RCURLY
 
 local_declarations  ::= local_declarations:dl var_declaration:d
                         {:
-                           VarDecList t = dl;
-                           while (t.tail != null) {
-                              t = t.tail;
-                           }
-                           t.tail = new VarDecList(d, null);
-                           if (t.head == null) {
-                              RESULT = t.tail;
-                           }
-                           else {
-                              RESULT = dl;
-                           }
+                            VarDecList t = dl;
+                            while (t.tail != null) {
+                                t = t.tail;
+                            }
+                            t.tail = new VarDecList(d, null);
+                            if (t.head == null) {
+                                RESULT = t.tail;
+                            }
+                            else {
+                                RESULT = dl;
+                            }
                         :}
                       |
                         {: RESULT = new VarDecList(null, null); :}
@@ -198,18 +181,20 @@ local_declarations  ::= local_declarations:dl var_declaration:d
 
 statement_list      ::= statement_list:el statement:e
                         {:
-                           ExpList t = el;
-                           while (t.tail != null) {
-                              t = t.tail;
-                           }
-                           t.tail = new ExpList(e, null);
-                           if (t.head == null) {
-                              RESULT = t.tail;
-                           }
-                           else {
-                              RESULT = el;
-                           }
+                            ExpList t = el;
+                            while (t.tail != null) {
+                                t = t.tail;
+                            }
+                            t.tail = new ExpList(e, null);
+                            if (t.head == null) {
+                                RESULT = t.tail;
+                            }
+                            else {
+                                RESULT = el;
+                            }
                         :}
+                      | error statement:s
+                        {: parser.report_error("Invalid statement", s); :}
                       |
                         {: RESULT = new ExpList(null, null); :}
                       ;
@@ -340,17 +325,17 @@ args                ::= arg_list:al
 
 arg_list            ::= arg_list:el COMMA expression:e
                         {:
-                           ExpList t = el;
-                           while (t.tail != null) {
-                              t = t.tail;
-                           }
-                           t.tail = new ExpList(e, null);
-                           if (t.head == null) {
-                              RESULT = t.tail;
-                           }
-                           else {
-                              RESULT = el;
-                           }
+                            ExpList t = el;
+                            while (t.tail != null) {
+                                t = t.tail;
+                            }
+                            t.tail = new ExpList(e, null);
+                            if (t.head == null) {
+                                RESULT = t.tail;
+                            }
+                            else {
+                                RESULT = el;
+                            }
                         :}
                       | expression:e
                         {: RESULT = new ExpList(e, null); :}

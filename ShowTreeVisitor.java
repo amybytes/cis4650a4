@@ -48,8 +48,12 @@ public class ShowTreeVisitor implements AbsynVisitor {
         indent(level);
         System.out.println("CompoundExp:");
         level++;
-        exp.decs.accept(this, level);
-        exp.exps.accept(this, level);
+        if (exp.decs != null) {
+            exp.decs.accept(this, level);
+        }
+        if (exp.exps != null) {
+            exp.exps.accept(this, level);
+        }
     }
 
     public void visit(IfExp exp, int level) {
