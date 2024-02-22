@@ -1,6 +1,8 @@
 package absyn;
 
 public class ArrayDec extends VarDec {
+    public static final int UNKNOWN_SIZE = -1;
+
     public int size;
 
     public ArrayDec(int row, int col, NameTy type, String name, int size) {

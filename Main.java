@@ -15,7 +15,7 @@ import java.io.*;
 import absyn.*;
    
 class Main {
-  public final static boolean SHOW_TREE = true;
+  public static final boolean SHOW_TREE = true;
   static public void main(String argv[]) {    
     /* Start the parser */
     try {

@@ -1,9 +1,9 @@
 package absyn;
 
 public class NameTy extends Absyn {
-    public final static int BOOL = 0;
-    public final static int INT  = 1;
-    public final static int VOID = 2;
+    public static final int BOOL = 0;
+    public static final int INT  = 1;
+    public static final int VOID = 2;
     
     public int type;
 
@@ -11,6 +11,15 @@ public class NameTy extends Absyn {
         this.row = row;
         this.col = col;
         this.type = type;
+    }
+
+    public String getTypeString() {
+        switch (type) {
+            case BOOL: return "BOOL";
+            case INT:  return "INT";
+            case VOID: return "VOID";
+            default:   return "UNKNOWN";
+        }
     }
 
     public void accept(AbsynVisitor visitor, int level) {

@@ -74,7 +74,7 @@ whiteSpace = {lineTerminator} | [ \t\f]
 
 /* A comment is any number of characters starting with forward slash star
    and ending with star forward slash. */
-comment = "/*".*"*/"
+comment = "/*"(.|[\r\n])*"*/"
    
 /* A literal integer is is a number beginning with a number between
    one and nine followed by zero or more numbers between zero and nine

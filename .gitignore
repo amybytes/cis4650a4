@@ -11,5 +11,6 @@ gcd.cm
 mutual.cm
 sort.cm
 booltest.cm
+test.cm
 Lexer.java*
 C1-Package/*
