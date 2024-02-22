@@ -1,0 +1,16 @@
+/* PROGRAM #4
+   This program generates an "Invalid statement" syntax error,
+   caused by the misspelled keyword "while" on line 11.
+*/
+
+int main(void) {
+    int x[8];
+    int i;
+
+    i = 0;
+    wile (i <= 8) {
+        x[i] = i;
+    }
+
+    return x;
+}

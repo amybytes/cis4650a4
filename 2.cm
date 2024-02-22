@@ -1,0 +1,12 @@
+/* PROGRAM #2
+   This program generates a syntax error by not declaring
+   any parameters for the function "func1" on line 6.
+*/
+
+int func1() {
+    return 1;
+}
+
+int main(void) {
+    return func1();
+}

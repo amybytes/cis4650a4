@@ -125,6 +125,8 @@ fun_declaration     ::= type_specifier:f ID:i LPAREN params:p RPAREN compound_st
 
 fun_prototype       ::= type_specifier:f ID:i LPAREN params:p RPAREN:n SEMI
                         {: RESULT = new FunctionDec(fleft, fright, f, i, p, new NilExp(nleft, nright)); :}
+                      | type_specifier ID LPAREN:lp error RPAREN SEMI
+                        {: parser.report_error("Invalid function declaration", lp); :}
                       ;
 
 params              ::= param_list:pl
@@ -194,7 +196,10 @@ statement_list      ::= statement_list:el statement:e
                             }
                         :}
                       | error statement:s
-                        {: parser.report_error("Invalid statement", s); :}
+                        {:
+                            parser.report_error("Invalid statement", s);
+                            RESULT = new ExpList(null, null);
+                        :}
                       |
                         {: RESULT = new ExpList(null, null); :}
                       ;
@@ -290,7 +295,7 @@ additive_expression ::= additive_expression:e1 ADD term:t1
 term                ::= term:t1 MULT signed_factor:f1
                         {: RESULT = new OpExp(t1left, t1right, t1, OpExp.MULT, f1); :}
                       | term:t2 DIV signed_factor:f2
-                        {: RESULT = new OpExp(t2left, t2right, t2, OpExp.MULT, f2); :}
+                        {: RESULT = new OpExp(t2left, t2right, t2, OpExp.DIV, f2); :}
                       | signed_factor:f3
                         {: RESULT = f3; :}
                       ;

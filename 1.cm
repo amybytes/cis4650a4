@@ -1,0 +1,17 @@
+/* PROGRAM #1
+   This program compiles correctly.
+*/
+
+int func1(int a, bool b) {
+    return (a + b) / 4;
+}
+
+int main(void) {
+    int x;
+    int y;
+
+    x = 8;
+    y = 12;
+
+    return func1(x, y);
+}
