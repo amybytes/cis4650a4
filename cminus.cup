@@ -66,6 +66,16 @@ non terminal IfExp selection_stmt;
 non terminal CallExp call;
 non terminal Exp factor, term, signed_factor;
 
+precedence left COMMA;
+precedence right ASSIGN;
+precedence left OR;
+precedence left AND;
+precedence left EQUAL, NEQUAL;
+precedence left LT, LTE, GT, GTE;
+precedence left ADD, SUBT;
+precedence left MULT, DIV;
+precedence right BNOT, UMINUS;
+
 /* ----------------------------Grammar Section-------------------- */
    
 start with program;
