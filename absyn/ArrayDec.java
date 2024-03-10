@@ -13,6 +13,10 @@ public class ArrayDec extends VarDec {
         this.size = size;
     }
 
+    public String getName() {
+        return name;
+    }
+
     public void accept(AbsynVisitor visitor, int level) {
         visitor.visit(this, level);
     }

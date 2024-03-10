@@ -82,7 +82,11 @@ start with program;
 
 
 program	            ::= declaration_list:dl
-                        {: RESULT = dl; :}
+                        {:
+                          SemanticAnalyzer semAnalyzer = new SemanticAnalyzer();
+                          semAnalyzer.analyze(dl);
+                          RESULT = dl;
+                        :}
                       ;
 
 declaration_list    ::= declaration_list:dl declaration:d

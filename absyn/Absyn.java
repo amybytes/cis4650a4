@@ -1,7 +1,7 @@
 package absyn;
 
-abstract public class Absyn {
+public abstract class Absyn {
     public int row, col;
 
-    abstract public void accept(AbsynVisitor visitor, int level);
+    public abstract void accept(AbsynVisitor visitor, int level);
 }
