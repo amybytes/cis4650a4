@@ -137,10 +137,6 @@ public class SemanticAnalyzer implements AbsynVisitor {
         return false;
     }
 
-    private boolean isInt(Dec dec) {
-        return isType(dec, NameTy.INT);
-    }
-
     private boolean isBool(Dec dec) {
         return isType(dec, NameTy.BOOL);
     }
