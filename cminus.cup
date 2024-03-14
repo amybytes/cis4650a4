@@ -19,7 +19,7 @@ parser code {:
             Absyn obj = (Absyn)info;
 
             if (obj.row >= 0) {
-                m.append(" in line " + (obj.row + 1));   
+                m.append(" on line " + (obj.row + 1));   
 
                 if (obj.col >= 0) {
                     m.append(", column " + (obj.col + 1));
@@ -84,7 +84,7 @@ start with program;
 program	            ::= declaration_list:dl
                         {:
                           SemanticAnalyzer semAnalyzer = new SemanticAnalyzer();
-                          semAnalyzer.analyze(dl);
+                          semAnalyzer.analyze(dl, true);
                           RESULT = dl;
                         :}
                       ;
@@ -119,8 +119,8 @@ var_declaration     ::= type_specifier:t1 ID:i1 SEMI
                         {: RESULT = new SimpleDec(t1left, t1right, t1, i1); :}
                       | type_specifier:t2 ID:i2 LSQUARE NUM:size RSQUARE SEMI
                         {: RESULT = new ArrayDec(t2left, t2right, t2, i2, Integer.parseInt(size)); :}
-                      | type_specifier ID:i3 error
-                        {: parser.report_error("Invalid variable declaration", i3); :}
+                      | type_specifier ID error:e
+                        {: parser.report_error("Invalid variable declaration", new NilExp(eleft, eright)); :}
                       ;
 
 type_specifier      ::= BOOL:b
@@ -133,14 +133,14 @@ type_specifier      ::= BOOL:b
 
 fun_declaration     ::= type_specifier:f ID:i LPAREN params:p RPAREN compound_stmt:b
                         {: RESULT = new FunctionDec(fleft, fright, f, i, p, b); :}
-                      | type_specifier ID LPAREN:lp error RPAREN compound_stmt
-                        {: parser.report_error("Invalid function declaration", lp); :}
+                      | type_specifier ID LPAREN error:e RPAREN compound_stmt
+                        {: parser.report_error("Invalid function declaration", new NilExp(eleft, eright)); :}
                       ;
 
 fun_prototype       ::= type_specifier:f ID:i LPAREN params:p RPAREN:n SEMI
                         {: RESULT = new FunctionDec(fleft, fright, f, i, p, new NilExp(nleft, nright)); :}
-                      | type_specifier ID LPAREN:lp error RPAREN SEMI
-                        {: parser.report_error("Invalid function declaration", lp); :}
+                      | type_specifier ID LPAREN error:e RPAREN SEMI
+                        {: parser.report_error("Invalid function declaration", new NilExp(eleft, eright)); :}
                       ;
 
 params              ::= param_list:pl
@@ -327,7 +327,7 @@ factor              ::= LPAREN expression:e RPAREN
                       | call:c
                         {: RESULT = c; :}
                       | NUM:n
-                        {: RESULT = new IntExp(nleft, nright, n); :}
+                        {: RESULT = new IntExp(nleft, nright, Integer.parseInt(n)); :}
                       | TRUTH:b
                         {: RESULT = new BoolExp(bleft, bright, Boolean.parseBoolean(b)); :}
                       ;

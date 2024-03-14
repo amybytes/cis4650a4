@@ -4,7 +4,7 @@ public class ShowTreeVisitor implements AbsynVisitor {
     static final int SPACES = 4;
 
     private void indent(int level) {
-        for(int i = 0; i < level * SPACES; i++) {
+        for (int i = 0; i < level * SPACES; i++) {
             System.out.print(" ");
         }
     }
@@ -69,7 +69,7 @@ public class ShowTreeVisitor implements AbsynVisitor {
 
     public void visit(IntExp exp, int level) {
         indent(level);
-        System.out.println("IntExp: " + exp.value); 
+        System.out.println("IntExp: " + exp.value);
     }
 
     public void visit(NilExp exp, int level) {
@@ -79,8 +79,8 @@ public class ShowTreeVisitor implements AbsynVisitor {
 
     public void visit(OpExp exp, int level) {
         indent(level);
-        System.out.print("OpExp:"); 
-        switch(exp.op) {
+        System.out.print("OpExp:");
+        switch (exp.op) {
             case OpExp.LT:
                 System.out.println(" < ");
                 break;
@@ -190,7 +190,7 @@ public class ShowTreeVisitor implements AbsynVisitor {
     public void visit(ArrayDec varDec, int level) {
         indent(level);
         System.out.println("ArrayDec: " + varDec.name +
-            " (size=" + varDec.size + ")");
+                " (size=" + varDec.size + ")");
         varDec.type.accept(this, ++level);
     }
 
