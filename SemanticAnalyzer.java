@@ -1,4 +1,13 @@
+/*
+  Created by: Ethan Rowan
+  File Name: SemanticAnalyzer.java
+*/
+
 import absyn.*;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -17,7 +26,7 @@ public class SemanticAnalyzer implements AbsynVisitor {
         initSymbolTable();
     }
 
-    public void analyze(DecList program, boolean showTable) {
+    public void analyze(DecList program, String outputFile) {
         output = new StringBuilder();
         output.append("Entering the global scope:\n");
         program.accept(this, ROOT_LEVEL + 1);
@@ -28,8 +37,20 @@ public class SemanticAnalyzer implements AbsynVisitor {
         }
 
         // Display the final symbol table
-        if (showTable) {
-            System.out.print(output.toString());
+        if (outputFile != null && writeFile(outputFile)) {
+            System.out.println("Symbol table written to \"" + outputFile + "\".");
+        }
+    }
+
+    private boolean writeFile(String outputFile) {
+        try {
+            FileOutputStream outputStream = new FileOutputStream(new File(outputFile));
+            outputStream.write(output.toString().getBytes());
+            outputStream.close();
+            return true;
+        } catch (IOException e) {
+            System.err.println("Failed to write symbol table to \"" + outputFile + "\".");
+            return false;
         }
     }
 
@@ -68,9 +89,9 @@ public class SemanticAnalyzer implements AbsynVisitor {
         return symbolTable.containsKey(MAIN_FUNCTION_NAME);
     }
 
-    private NodeType checkDecConflict(List<NodeType> decStack, Dec dec) {
+    private NodeType checkDecConflict(List<NodeType> decStack, Dec dec, int level) {
         for (NodeType type : decStack) {
-            if (type.name.equals(dec.getName())) {
+            if (type.name.equals(dec.getName()) && level == type.level) {
                 if ((type.def instanceof VarDec && dec instanceof VarDec) ||
                         (type.def instanceof FunctionDec && dec instanceof FunctionDec)) {
                     return type;
@@ -88,7 +109,7 @@ public class SemanticAnalyzer implements AbsynVisitor {
 
         if (symbolTable.containsKey(name)) {
             decStack = symbolTable.get(name);
-            if ((conflict = checkDecConflict(decStack, dec)) != null) {
+            if ((conflict = checkDecConflict(decStack, dec, level)) != null) {
                 Dec conflictDec = conflict.def;
                 if (conflictDec instanceof FunctionDec && ((FunctionDec) conflictDec).body instanceof NilExp
                         && !(((FunctionDec) dec).body instanceof NilExp)) {
@@ -137,8 +158,19 @@ public class SemanticAnalyzer implements AbsynVisitor {
         return false;
     }
 
+    private boolean isInt(Dec dec) {
+        return isType(dec, NameTy.INT);
+    }
+
     private boolean isBool(Dec dec) {
         return isType(dec, NameTy.BOOL);
+    }
+
+    private int getType(Exp exp) {
+        if (exp.dtype != null && exp.dtype.getType() != null) {
+            return exp.dtype.getType().type;
+        }
+        return -1;
     }
 
     private Dec getDummyDec(int type) {
@@ -256,7 +288,7 @@ public class SemanticAnalyzer implements AbsynVisitor {
     }
 
     private int getOperatorOutputType(int operator) {
-        final int[] intOperators = { OpExp.ADD, OpExp.SUBT, OpExp.MULT, OpExp.MULT, OpExp.UMINUS };
+        final int[] intOperators = { OpExp.ADD, OpExp.SUBT, OpExp.MULT, OpExp.DIV, OpExp.UMINUS };
         final int[] boolOperators = { OpExp.LT, OpExp.GT, OpExp.LTE, OpExp.GTE, OpExp.EQUAL, OpExp.NEQUAL, OpExp.OR,
                 OpExp.AND, OpExp.BNOT };
 
@@ -274,6 +306,9 @@ public class SemanticAnalyzer implements AbsynVisitor {
 
     public void visit(IndexVar var, int level) {
         var.index.accept(this, level);
+        if (!isInt(var.index.dtype)) {
+            reportError(var.index.row, var.index.col, "Expression type must be integer");
+        }
     }
 
     public void visit(SimpleVar var, int level) {
@@ -283,7 +318,7 @@ public class SemanticAnalyzer implements AbsynVisitor {
         exp.lhs.accept(this, level);
         exp.rhs.accept(this, level);
         exp.dtype = exp.lhs.dtype;
-        if (exp.lhs.dtype.getType().type != exp.rhs.dtype.getType().type) {
+        if (getType(exp.lhs) != getType(exp.rhs)) {
             reportError(exp.row, exp.col, "Types do not match");
         }
     }
@@ -298,6 +333,31 @@ public class SemanticAnalyzer implements AbsynVisitor {
             reportError(exp.row, exp.col, "Function \"" + exp.func + "\" called before declaration");
         }
         exp.dtype = getDecType(exp.func);
+
+        // Validate argument types match the function declaration
+        if (exp.dtype != null) {
+            ExpList expList = exp.args;
+            VarDecList params = ((FunctionDec) exp.dtype).params;
+
+            // Check if the function declaration or argument list have 1 mismatching
+            // parameter
+            Exp arg1 = expList != null ? expList.head : null;
+            VarDec param1 = params != null ? params.head : null;
+            if ((arg1 != null && param1 == null) || (arg1 == null && param1 != null)) {
+                reportError(exp.row, exp.col, "Arguments do not match function declaration");
+            }
+
+            // Check if the argument list and function parameters have the same types
+            while (expList != null && expList.head != null && params != null && params.head != null) {
+                if (getType(expList.head) != params.head.type.type || (params.tail != null && expList.tail == null)
+                        || (params.tail == null && expList.tail != null)) {
+                    reportError(expList.head.row, expList.head.col, "Arguments do not match function declaration");
+                    break;
+                }
+                params = params.tail;
+                expList = expList.tail;
+            }
+        }
     }
 
     public void visit(CompoundExp exp, int level) {
@@ -319,8 +379,9 @@ public class SemanticAnalyzer implements AbsynVisitor {
     }
 
     public void visit(IfExp exp, int level) {
-        exp.thenpart.accept(this, level + 1);
-        exp.elsepart.accept(this, level + 1);
+        exp.test.accept(this, level);
+        exp.thenpart.accept(this, level);
+        exp.elsepart.accept(this, level);
         if (!isBool(exp.test.dtype)) {
             reportError(exp.test.row, exp.test.col, "Expression type must be boolean");
         }
@@ -343,19 +404,17 @@ public class SemanticAnalyzer implements AbsynVisitor {
         // Special case: operators that accept multiple types
         if (inputType == 3) {
             // Left and right param types must match
-            if (exp.left.dtype.getType().type != exp.right.dtype.getType().type) {
+            if (getType(exp.left) != getType(exp.right)) {
                 reportError(exp.row, exp.col, "Invalid expression type for operator");
             }
         } else {
             // Left and right param types must match the operator type (if they exist)
 
-            if (!(exp.left instanceof NilExp) && exp.left.dtype.getType().type != inputType) {
-                System.out.println(inputType + " " + exp.left.dtype.getType().type);
+            if (!(exp.left instanceof NilExp) && getType(exp.left) != inputType) {
                 reportError(exp.left.row, exp.left.col, "Invalid expression type for operator");
             }
 
-            if (!(exp.right instanceof NilExp) && exp.right.dtype.getType().type != inputType) {
-                System.out.println(inputType + " " + exp.right.dtype.getType().type);
+            if (!(exp.right instanceof NilExp) && getType(exp.right) != inputType) {
                 reportError(exp.right.row, exp.right.col, "Invalid expression type for operator");
             }
         }
@@ -404,34 +463,36 @@ public class SemanticAnalyzer implements AbsynVisitor {
     }
 
     public void visit(FunctionDec dec, int level) {
-        if (!(dec.body instanceof NilExp)) {
-            indent(level);
-            output.append("Entering the scope for function " + dec.getName() + ":\n");
-        }
-        dec.params.accept(this, level + 1);
-        dec.body.accept(this, level);
+        boolean isPrototype = dec.body instanceof NilExp;
 
-        // Validate return type
-        if (dec.body instanceof CompoundExp) {
-            CompoundExp body = (CompoundExp) dec.body;
-            ExpList exp = body.exps;
-            while (exp != null && exp.head != null) {
-                if (exp.head instanceof ReturnExp) {
-                    ReturnExp rexp = (ReturnExp) exp.head;
-                    if (rexp.dtype.getType().type != dec.result.type) {
-                        reportError(rexp.exp.row, rexp.exp.col,
-                                "Return expression does not match function return type");
-                    }
-                    break;
-                }
-                exp = exp.tail;
-            }
-        }
-
-        removeVarDecListSymbols(dec.params, level + 1);
         addSymbol(dec, level);
 
-        if (!(dec.body instanceof NilExp)) {
+        if (!isPrototype) {
+            indent(level);
+            output.append("Entering the scope for function " + dec.getName() + ":\n");
+
+            dec.params.accept(this, level + 1);
+            dec.body.accept(this, level);
+
+            // Validate return type
+            if (dec.body instanceof CompoundExp) {
+                CompoundExp body = (CompoundExp) dec.body;
+                ExpList exp = body.exps;
+                while (exp != null && exp.head != null) {
+                    if (exp.head instanceof ReturnExp) {
+                        ReturnExp rexp = (ReturnExp) exp.head;
+                        if (getType(rexp) != dec.result.type) {
+                            reportError(rexp.exp.row, rexp.exp.col,
+                                    "Return expression does not match function return type");
+                        }
+                    }
+                    exp = exp.tail;
+                }
+            }
+            removeVarDecListSymbols(dec.params, level + 1);
+        }
+
+        if (!isPrototype) {
             indent(level);
             output.append("Leaving the function scope\n");
         }

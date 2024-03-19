@@ -1,20 +1,20 @@
 /* PROGRAM #5
-   This program generates multiple syntax errors.
-     - A semicolon is not included at the end of the variable
-       declaration on line 10.
-     - The array size is not specified in the variable declaration
-       on line 11.
-     - No parameters are declared for the function "func2" on line 22.
+   This program generates three errors on lines 6, 18, and 20.
+
+   The first error is generated because the value "10" is being
+   compared with a boolean value.
+
+   The second error is generated because the variable "k" is
+   declared as a void type.
+
+   The third error is generated because the while loop's test
+   condition must be a boolean expression, but the expression
+   "x + 10" evaluates to an integer. 
 */
 
-int a
-int b[];
-
-int func2();
-
-int recur(int x, int i) {
-    if (i < 10) {
-        return recur(x * x, i + 1);
+int recur(int x, int i, bool a) {
+    if (a < 10) {
+        return recur(x * x, i + 1, a);
     }
     else {
         return x;
@@ -24,9 +24,13 @@ int recur(int x, int i) {
 int main(void) {
     int x;
     int y;
+    bool z;
+    void k;
 
-    x = recur(2, 0);
-    y = recur(4, 5);
+    while (x + 10) {
+        x = recur(2, 0, z);
+        y = recur(4, 5, z);
+    }
 
     if (x > y) {
         return x;

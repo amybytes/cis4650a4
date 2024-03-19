@@ -1,15 +1,33 @@
 /* PROGRAM #4
-   This program generates an "Invalid statement" syntax error,
-   caused by the misspelled keyword "while" on line 11.
+   This program generates two errors on line 23.
+
+   The first error is generated because the third argument
+   passed to the function "func" does not match the type of
+   the third parameter in the function declaration.
+
+   The second error is generated because the return value
+   of the call to function "func" does not match the type
+   of variable k in the assignment.
 */
+
+int func(int x, int y, bool z) {
+    if (z) {
+        return x + y;
+    }
+    else {
+        return x * y;
+    }
+}
 
 int main(void) {
     int x[8];
     int i;
+    bool k;
 
     i = 0;
-    wile (i <= 8) {
+    while (i <= 8) {
         x[i] = i;
+        k = func(x[i], x[0], 8);
     }
 
     return x;

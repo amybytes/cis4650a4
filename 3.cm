@@ -1,21 +1,36 @@
 /* PROGRAM #3
-   This program generates a syntax error by not including
-   a semicolon in a variable declaration on line 18.
+   This program generates two errors on lines 19 and 28.
+
+   The first error is generated because the function "func2"
+   is already declared on line 12.
+
+   The second error is generated because the variable "x" is
+   already declared in the local scope on line 29.
 */
+
+int x;
+int y;
+int z;
 
 int func2(int a) {
     return a * 4;
 }
 
-void func1(int x, bool y) {
+void func1(int x, int y) {
     output(x + y);
     output(func2(x + y));
+}
+
+bool func2(int b) {
+    return b * 8 > 10;
 }
 
 int main(void) {
     int x;
     int y;
-    int z
+    int z;
+
+    int x;
 
     x = (y - z) / x;
     func1(x, z);

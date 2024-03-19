@@ -2,7 +2,10 @@
    This program compiles correctly.
 */
 
-int func1(int a, bool b) {
+int x;
+int y;
+
+int func1(int a, int b) {
     return (a + b) / 4;
 }
 
@@ -12,6 +15,14 @@ int main(void) {
 
     x = 8;
     y = 12;
+
+    {
+        int x;
+        int y;
+        x = 1;
+        y = 2;
+        output(x + y);
+    }
 
     return func1(x, y);
 }
