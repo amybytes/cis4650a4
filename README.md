@@ -1,4 +1,4 @@
-# CIS*4650 Checkpoint 2
+# CIS*4650 Checkpoint 3
 Ethan Rowan (1086586)
 
 ## Building
