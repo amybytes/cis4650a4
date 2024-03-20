@@ -24,25 +24,40 @@ class CM {
         return hasArg(args, "-s");
     }
 
+    public static boolean generateCode(String[] args) {
+        return hasArg(args, "-c");
+    }
+
     static public void main(String args[]) {
         String inputFileName = args[0];
         String inputFilePrefix = inputFileName.split("[.]")[0];
         String syntaxTreeFile = showSyntaxTree(args) ? inputFilePrefix + ".abs" : null;
         String symbolTableFile = showSymbolTable(args) ? inputFilePrefix + ".sym" : null;
+        String codeGenFile = generateCode(args) ? inputFilePrefix + ".tm" : null;
 
         /* Start the parser */
         try {
             parser p = new parser(new Lexer(new FileReader(inputFileName)));
             Absyn result = (Absyn) (p.parse().value);
-            if (showSyntaxTree(args) && result != null) {
-                ShowTreeVisitor visitor = new ShowTreeVisitor();
-                visitor.showTree(result, syntaxTreeFile);
-            }
+            ShowTreeVisitor treeVisitor = new ShowTreeVisitor();
+            SemanticAnalyzer semAnalyzer = new SemanticAnalyzer();
+            CodeGenerator codeGenerator = new CodeGenerator();
 
-            if (showSymbolTable(args) && result != null && result instanceof DecList) {
-                SemanticAnalyzer semAnalyzer = new SemanticAnalyzer();
-                semAnalyzer.analyze((DecList) result, symbolTableFile);
+            if (result != null) {
+                if (showSyntaxTree(args)) {
+                    treeVisitor.showTree(result, syntaxTreeFile);
+                }
+
+                if ((showSymbolTable(args) || generateCode(args)) && result instanceof DecList) {
+                    semAnalyzer.analyze((DecList) result, symbolTableFile);
+                }
+
+                if (generateCode(args)) {
+                    codeGenerator.generate(result, codeGenFile);
+                }
             }
+        } catch (FileNotFoundException e) {
+            System.err.println("Error: Failed to open the file \"" + inputFileName + "\".");
         } catch (Exception e) {
             /* do cleanup here -- possibly rethrow e */
             e.printStackTrace();

@@ -5,7 +5,7 @@ public class Scanner {
     private Lexer scanner = null;
 
     public Scanner(Lexer lexer) {
-        scanner = lexer; 
+        scanner = lexer;
     }
 
     public Symbol getNextToken() throws java.io.IOException {
@@ -19,8 +19,7 @@ public class Scanner {
             while ((tok = scanner.getNextToken()) != null) {
                 System.out.println(sym.terminalNames[tok.sym]);
             }
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             System.out.println("Unexpected exception:");
             e.printStackTrace();
         }

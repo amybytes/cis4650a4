@@ -10,8 +10,8 @@ public class AssignExp extends Exp {
         this.lhs = lhs;
         this.rhs = rhs;
     }
-  
-    public void accept(AbsynVisitor visitor, int level) {
-        visitor.visit(this, level);
+
+    public void accept(AbsynVisitor visitor, int level, boolean isAddress) {
+        visitor.visit(this, level, isAddress);
     }
 }

@@ -15,3 +15,8 @@ test.cm
 Lexer.java*
 C1-Package/*
 submission/*
+
+*.sym
+*.abs
+*.tm
+tm

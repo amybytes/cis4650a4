@@ -3,6 +3,7 @@ package absyn;
 public class FunctionDec extends Dec {
     public NameTy result;
     public String func;
+    public int funaddr;
     public VarDecList params;
     public Exp body;
 
@@ -19,8 +20,8 @@ public class FunctionDec extends Dec {
         return func;
     }
 
-    public void accept(AbsynVisitor visitor, int level) {
-        visitor.visit(this, level);
+    public void accept(AbsynVisitor visitor, int level, boolean isAddress) {
+        visitor.visit(this, level, isAddress);
     }
 
     public NameTy getType() {

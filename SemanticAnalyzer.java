@@ -29,7 +29,7 @@ public class SemanticAnalyzer implements AbsynVisitor {
     public void analyze(DecList program, String outputFile) {
         output = new StringBuilder();
         output.append("Entering the global scope:\n");
-        program.accept(this, ROOT_LEVEL + 1);
+        program.accept(this, ROOT_LEVEL + 1, false);
         removeDecListSymbols(program, ROOT_LEVEL + 1);
         output.append("Leaving the global scope\n");
         if (!isMainDeclared()) {
@@ -301,34 +301,34 @@ public class SemanticAnalyzer implements AbsynVisitor {
         return -1;
     }
 
-    public void visit(NameTy type, int level) {
+    public void visit(NameTy type, int level, boolean isAddress) {
     }
 
-    public void visit(IndexVar var, int level) {
-        var.index.accept(this, level);
+    public void visit(IndexVar var, int level, boolean isAddress) {
+        var.index.accept(this, level, false);
         if (!isInt(var.index.dtype)) {
             reportError(var.index.row, var.index.col, "Expression type must be integer");
         }
     }
 
-    public void visit(SimpleVar var, int level) {
+    public void visit(SimpleVar var, int level, boolean isAddress) {
     }
 
-    public void visit(AssignExp exp, int level) {
-        exp.lhs.accept(this, level);
-        exp.rhs.accept(this, level);
+    public void visit(AssignExp exp, int level, boolean isAddress) {
+        exp.lhs.accept(this, level, false);
+        exp.rhs.accept(this, level, false);
         exp.dtype = exp.lhs.dtype;
         if (getType(exp.lhs) != getType(exp.rhs)) {
             reportError(exp.row, exp.col, "Types do not match");
         }
     }
 
-    public void visit(BoolExp exp, int level) {
+    public void visit(BoolExp exp, int level, boolean isAddress) {
         exp.dtype = getDummyDec(NameTy.BOOL);
     }
 
-    public void visit(CallExp exp, int level) {
-        exp.args.accept(this, level);
+    public void visit(CallExp exp, int level, boolean isAddress) {
+        exp.args.accept(this, level, false);
         if (!isDeclared(exp, level)) {
             reportError(exp.row, exp.col, "Function \"" + exp.func + "\" called before declaration");
         }
@@ -360,15 +360,15 @@ public class SemanticAnalyzer implements AbsynVisitor {
         }
     }
 
-    public void visit(CompoundExp exp, int level) {
+    public void visit(CompoundExp exp, int level, boolean isAddress) {
         // Only show for non-function blocks
         if (level != 1) {
             indent(level);
             output.append("Entering block:\n");
         }
 
-        exp.decs.accept(this, level + 1);
-        exp.exps.accept(this, level + 1);
+        exp.decs.accept(this, level + 1, false);
+        exp.exps.accept(this, level + 1, false);
         removeVarDecListSymbols(exp.decs, level + 1);
 
         // Only show for non-function blocks
@@ -378,25 +378,25 @@ public class SemanticAnalyzer implements AbsynVisitor {
         }
     }
 
-    public void visit(IfExp exp, int level) {
-        exp.test.accept(this, level);
-        exp.thenpart.accept(this, level);
-        exp.elsepart.accept(this, level);
+    public void visit(IfExp exp, int level, boolean isAddress) {
+        exp.test.accept(this, level, false);
+        exp.thenpart.accept(this, level, false);
+        exp.elsepart.accept(this, level, false);
         if (!isBool(exp.test.dtype)) {
             reportError(exp.test.row, exp.test.col, "Expression type must be boolean");
         }
     }
 
-    public void visit(IntExp exp, int level) {
+    public void visit(IntExp exp, int level, boolean isAddress) {
         exp.dtype = getDummyDec(NameTy.INT);
     }
 
-    public void visit(NilExp exp, int level) {
+    public void visit(NilExp exp, int level, boolean isAddress) {
     }
 
-    public void visit(OpExp exp, int level) {
-        exp.left.accept(this, level);
-        exp.right.accept(this, level);
+    public void visit(OpExp exp, int level, boolean isAddress) {
+        exp.left.accept(this, level, false);
+        exp.right.accept(this, level, false);
         int inputType = getOperatorInputType(exp.op);
         int outputType = getOperatorOutputType(exp.op);
         exp.dtype = getDummyDec(outputType);
@@ -420,49 +420,49 @@ public class SemanticAnalyzer implements AbsynVisitor {
         }
     }
 
-    public void visit(ReturnExp exp, int level) {
-        exp.exp.accept(this, level);
+    public void visit(ReturnExp exp, int level, boolean isAddress) {
+        exp.exp.accept(this, level, false);
         exp.dtype = exp.exp.dtype;
     }
 
-    public void visit(VarExp exp, int level) {
-        exp.var.accept(this, level);
+    public void visit(VarExp exp, int level, boolean isAddress) {
+        exp.var.accept(this, level, false);
         exp.dtype = getDecType(exp.var.name);
         if (!isDeclared(exp.var, level)) {
             reportError(exp.var.row, exp.var.col, "Variable \"" + exp.var.name + "\" used before declaration");
         }
     }
 
-    public void visit(WhileExp exp, int level) {
-        exp.test.accept(this, level);
-        exp.body.accept(this, level);
+    public void visit(WhileExp exp, int level, boolean isAddress) {
+        exp.test.accept(this, level, false);
+        exp.body.accept(this, level, false);
         if (!isBool(exp.test.dtype)) {
             reportError(exp.test.row, exp.test.col, "Expression type must be boolean");
         }
     }
 
-    public void visit(ExpList expList, int level) {
+    public void visit(ExpList expList, int level, boolean isAddress) {
         while (expList != null && expList.head != null) {
-            expList.head.accept(this, level);
+            expList.head.accept(this, level, false);
             expList = expList.tail;
         }
     }
 
-    public void visit(DecList decList, int level) {
+    public void visit(DecList decList, int level, boolean isAddress) {
         while (decList != null && decList.head != null) {
-            decList.head.accept(this, level);
+            decList.head.accept(this, level, false);
             decList = decList.tail;
         }
     }
 
-    public void visit(VarDecList varDecList, int level) {
+    public void visit(VarDecList varDecList, int level, boolean isAddress) {
         while (varDecList != null && varDecList.head != null) {
-            varDecList.head.accept(this, level);
+            varDecList.head.accept(this, level, false);
             varDecList = varDecList.tail;
         }
     }
 
-    public void visit(FunctionDec dec, int level) {
+    public void visit(FunctionDec dec, int level, boolean isAddress) {
         boolean isPrototype = dec.body instanceof NilExp;
 
         addSymbol(dec, level);
@@ -471,8 +471,8 @@ public class SemanticAnalyzer implements AbsynVisitor {
             indent(level);
             output.append("Entering the scope for function " + dec.getName() + ":\n");
 
-            dec.params.accept(this, level + 1);
-            dec.body.accept(this, level);
+            dec.params.accept(this, level + 1, false);
+            dec.body.accept(this, level, false);
 
             // Validate return type
             if (dec.body instanceof CompoundExp) {
@@ -498,7 +498,7 @@ public class SemanticAnalyzer implements AbsynVisitor {
         }
     }
 
-    public void visit(ArrayDec varDec, int level) {
+    public void visit(ArrayDec varDec, int level, boolean isAddress) {
         if (varDec.type.type == NameTy.VOID) {
             reportError(varDec.row, varDec.col, "The type \"void\" is not allowed for variables");
         } else {
@@ -506,7 +506,7 @@ public class SemanticAnalyzer implements AbsynVisitor {
         }
     }
 
-    public void visit(SimpleDec varDec, int level) {
+    public void visit(SimpleDec varDec, int level, boolean isAddress) {
         if (varDec.type.type == NameTy.VOID) {
             reportError(varDec.row, varDec.col, "The type \"void\" is not allowed for variables");
         } else {
