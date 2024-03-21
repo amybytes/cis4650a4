@@ -15,6 +15,8 @@ public class CodeGenerator implements AbsynVisitor {
     private int emitLoc = 0; // Current instruction being generated
     private int highEmitLoc = 0; // Next available space (for next instruction)
 
+    private int fpOffset;
+
     // Registers
     private int AC = 0;
     private int AC1 = 1;
@@ -29,16 +31,6 @@ public class CodeGenerator implements AbsynVisitor {
     public void generate(Absyn tree, String outputFile) {
         generatePrelude();
         generateIORoutines();
-
-        // Temporary main function (TODO: replace with actual main function)
-        emitComment("TEMPORARY main function");
-        mainEntry = emitLoc + 1;
-        backpatch("Jump forward to finale", () -> {
-            emitRM(OpCode.ST, 0, -1, 5, "Save return address");
-            emitRM(OpCode.LDC, 0, 5, 0, "Load constant TEST");
-            emitRO(OpCode.OUT, 0, 0, 0, "Display 5");
-            emitRM(OpCode.LD, PC, -1, 5, "Return back to caller");
-        });
 
         tree.accept(this, 0, false);
 
@@ -158,6 +150,9 @@ public class CodeGenerator implements AbsynVisitor {
             emitComment("Allocating variable " + varDec.name);
             varDec.offset = globalOffset;
             globalOffset -= size;
+        } else {
+            emitComment("Processing local var: " + varDec.name);
+            varDec.offset = fpOffset--;
         }
     }
 
@@ -181,6 +176,14 @@ public class CodeGenerator implements AbsynVisitor {
 
     public void visit(CallExp exp, int level, boolean isAddress) {
         exp.args.accept(this, level, false);
+
+        // TODO: push computed arguments onto stack
+
+        //// TODO: create stackframe
+        // int stackPointer = fpOffset;
+        // fpOffset = 0;
+        // emitRM(OpCode.ST, stackPointer - 1, 0, FP, "Store old FP");
+        // emitRMAbs(OpCode.LDA, FP, );
     }
 
     public void visit(CompoundExp exp, int level, boolean isAddress) {
@@ -243,8 +246,17 @@ public class CodeGenerator implements AbsynVisitor {
         boolean isPrototype = dec.body instanceof NilExp;
 
         if (!isPrototype) {
-            dec.params.accept(this, level + 1, false);
-            dec.body.accept(this, level, false);
+            if (dec.func.equals("main")) {
+                mainEntry = emitLoc + 1;
+            }
+
+            emitComment("Processing function: " + dec.func);
+            backpatch("Jump around function", () -> {
+                emitRM(OpCode.ST, 0, -1, FP, "Save return address");
+                dec.params.accept(this, level + 1, false);
+                dec.body.accept(this, level, false);
+                emitRM(OpCode.LD, PC, -1, FP, "Return back to caller");
+            });
         }
     }
 
