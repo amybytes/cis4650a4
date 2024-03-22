@@ -12,9 +12,9 @@ import absyn.*;
 public class CodeGenerator implements AbsynVisitor {
     private StringBuilder output;
     private int mainEntry, globalOffset;
+    private int inputLoc, outputLoc;
     private int emitLoc = 0; // Current instruction being generated
     private int highEmitLoc = 0; // Next available space (for next instruction)
-
     private int fpOffset;
 
     // Registers
@@ -71,14 +71,18 @@ public class CodeGenerator implements AbsynVisitor {
     private void generateIORoutines() {
         emitComment("Input routine");
         backpatch("Jump over I/O routines", () -> {
-            emitRM(OpCode.ST, 0, -1, FP, "Store return address");
+            inputLoc = emitLoc;
+            emitRM(OpCode.ST, AC, -1, FP, "Store return address");
             emitRO(OpCode.IN, 0, 0, 0, "Get input");
-            emitRM(OpCode.LD, PC, -1, FP, "Jump to caller address");
+            // emitRM(OpCode.LD, FP, 0, FP, "Load old FP");
+            emitRM(OpCode.LD, PC, -1, FP, "Return back to caller");
             emitComment("Output routine");
-            emitRM(OpCode.ST, 0, -1, FP, "Store return address");
+            outputLoc = emitLoc;
+            emitRM(OpCode.ST, AC, -1, FP, "Store return address");
             emitRM(OpCode.LD, 0, -2, FP, "Load output value");
             emitRO(OpCode.OUT, 0, 0, 0, "Display output");
-            emitRM(OpCode.LD, PC, -1, FP, "Jump to caller address");
+            // emitRM(OpCode.LD, FP, 0, FP, "Load old FP");
+            emitRM(OpCode.LD, PC, -1, FP, "Return back to caller");
         });
     }
 
@@ -156,6 +160,19 @@ public class CodeGenerator implements AbsynVisitor {
         }
     }
 
+    private int getCallerAddr(CallExp exp) {
+        if (exp.func.equals("input")) {
+            return inputLoc;
+        } else if (exp.func.equals("output")) {
+            return outputLoc;
+        }
+
+        if (exp.dtype != null) {
+            return ((FunctionDec) exp.dtype).funaddr;
+        }
+        return 0;
+    }
+
     public void visit(NameTy type, int level, boolean isAddress) {
     }
 
@@ -175,15 +192,23 @@ public class CodeGenerator implements AbsynVisitor {
     }
 
     public void visit(CallExp exp, int level, boolean isAddress) {
+        // TODO: change fpOffset to equal the negative number of arguments pushed onto
+        // the stack
+        fpOffset = -1;
+
+        int callerAddr = getCallerAddr(exp);
+
+        emitRM(OpCode.ST, FP, fpOffset - 2, FP, "Store old FP in stackframe");
+        emitRM(OpCode.LDA, FP, fpOffset - 2, FP, "Load new FP");
+
+        // TODO: push computed arguments onto stack and remove test and test2 arguments
         exp.args.accept(this, level, false);
+        emitRM(OpCode.LDC, AC1, 123, 0, "test");
+        emitRM(OpCode.ST, AC1, -2, FP, "test2");
 
-        // TODO: push computed arguments onto stack
-
-        //// TODO: create stackframe
-        // int stackPointer = fpOffset;
-        // fpOffset = 0;
-        // emitRM(OpCode.ST, stackPointer - 1, 0, FP, "Store old FP");
-        // emitRMAbs(OpCode.LDA, FP, );
+        emitRM(OpCode.LDA, AC, 1, PC, "Load return address into AC");
+        emitRMAbs(OpCode.LDA, PC, callerAddr, "Jump to caller address");
+        emitRM(OpCode.LD, FP, 0, FP, "Load old FP");
     }
 
     public void visit(CompoundExp exp, int level, boolean isAddress) {
@@ -251,10 +276,18 @@ public class CodeGenerator implements AbsynVisitor {
             }
 
             emitComment("Processing function: " + dec.func);
+            dec.funaddr = emitLoc + 1;
+
             backpatch("Jump around function", () -> {
-                emitRM(OpCode.ST, 0, -1, FP, "Save return address");
+                // int previousSP = fpOffset;
+
+                emitRM(OpCode.ST, AC, -1, FP, "Store return address");
+
                 dec.params.accept(this, level + 1, false);
                 dec.body.accept(this, level, false);
+
+                // TODO: handle this stuff in return exp?
+                // fpOffset = previousSP;
                 emitRM(OpCode.LD, PC, -1, FP, "Return back to caller");
             });
         }
