@@ -16,6 +16,8 @@ public class OpExp extends Exp {
     public static final int DIV = 12;
     public static final int UMINUS = 13;
 
+    private final int[] RELATIONAL_OPERATORS = { LT, GT, LTE, GTE, EQUAL, NEQUAL, OR, AND, BNOT };
+
     public Exp left;
     public int op;
     public Exp right;
@@ -61,6 +63,15 @@ public class OpExp extends Exp {
             default:
                 return null;
         }
+    }
+
+    public boolean isRelational() {
+        for (int op : RELATIONAL_OPERATORS) {
+            if (this.op == op) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public void accept(AbsynVisitor visitor, int level, boolean isAddress) {

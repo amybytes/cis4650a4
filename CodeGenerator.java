@@ -32,6 +32,10 @@ public class CodeGenerator implements AbsynVisitor {
     private int GP = 6;
     private int PC = 7;
 
+    // Boolean constants
+    private int TRUE = 1;
+    private int FALSE = 0;
+
     public CodeGenerator() {
         output = new StringBuilder();
         fpOffsets = new HashMap<FunctionDec, Integer>();
@@ -220,15 +224,6 @@ public class CodeGenerator implements AbsynVisitor {
         temporaries.clear();
     }
 
-    private void storeResult(Exp exp, int offset, boolean isLocal) {
-        boolean isAddr = !(exp instanceof IntExp || exp instanceof BoolExp);
-        System.out.println(exp.temp + " " + offset + " " + isLocal + " " + isAddr + " " + exp.getClass());
-
-        emitRM(isAddr ? OpCode.LD : OpCode.LDC, AC, exp.temp.offset, exp.temp.scope == Temp.LOCAL_SCOPE ? FP : GP,
-                "Load result into AC");
-        emitRM(OpCode.ST, AC, offset, isLocal ? FP : GP, "Store result in memory");
-    }
-
     public void visit(NameTy type, int level, boolean isAddress) {
     }
 
@@ -256,6 +251,7 @@ public class CodeGenerator implements AbsynVisitor {
 
     public void visit(BoolExp exp, int offset, boolean isAddress) {
         int value = ((BoolExp) exp).value ? 1 : 0;
+        System.out.println(value + " " + exp.value);
         exp.temp = new Temp(value, Temp.LOCAL_SCOPE);
         if (isAddress) {
             setVarMemory(value, offset, true);
@@ -273,8 +269,6 @@ public class CodeGenerator implements AbsynVisitor {
         ExpList args = exp.args;
         while (args != null && args.head != null) {
             args.head.accept(this, futureFpOffset--, true);
-            // storeResult(args.head, futureFpOffset + 1, args.head.temp.scope ==
-            // Temp.LOCAL_SCOPE ? true : false);
             args = args.tail;
         }
 
@@ -303,10 +297,10 @@ public class CodeGenerator implements AbsynVisitor {
         exp.exps.accept(this, level + 1, false);
     }
 
-    public void visit(IfExp exp, int level, boolean isAddress) {
-        exp.test.accept(this, level, false);
-        exp.thenpart.accept(this, level, false);
-        exp.elsepart.accept(this, level, false);
+    public void visit(IfExp exp, int offset, boolean isAddress) {
+        exp.test.accept(this, offset, false);
+        exp.thenpart.accept(this, offset, false);
+        exp.elsepart.accept(this, offset, false);
     }
 
     public void visit(IntExp exp, int offset, boolean isAddress) {
@@ -330,7 +324,6 @@ public class CodeGenerator implements AbsynVisitor {
         emitComment("Evaluating " + exp.getDisplayOp() + " operation");
 
         // Load temporaries
-        System.out.println(exp.left.temp.scope + " " + exp.right.temp.scope);
         emitRM(isLeftAddr ? OpCode.LD : OpCode.LDC, AC1, exp.left.temp.offset,
                 exp.left.temp.scope == Temp.LOCAL_SCOPE ? FP : GP, "Load left operand into AC1");
         emitRM(isRightAddr ? OpCode.LD : OpCode.LDC, AC2, exp.right.temp.offset,
@@ -350,6 +343,49 @@ public class CodeGenerator implements AbsynVisitor {
             case OpExp.MULT:
                 emitRO(OpCode.MUL, AC, AC1, AC2, "Perform multiplication");
                 break;
+            case OpExp.UMINUS:
+                // TODO:
+                break;
+            case OpExp.LT:
+                emitRO(OpCode.SUB, AC, AC1, AC2, "Subtract operands");
+                emitRM(OpCode.JLT, AC, 2, PC, "Jump to TRUE if <");
+                break;
+            case OpExp.LTE:
+                emitRO(OpCode.SUB, AC, AC1, AC2, "Subtract operands");
+                emitRM(OpCode.JLE, AC, 2, PC, "Jump to TRUE if <=");
+                break;
+            case OpExp.GT:
+                emitRO(OpCode.SUB, AC, AC1, AC2, "Subtract operands");
+                emitRM(OpCode.JGT, AC, 2, PC, "Jump to TRUE if >");
+                break;
+            case OpExp.GTE:
+                emitRO(OpCode.SUB, AC, AC1, AC2, "Subtract operands");
+                emitRM(OpCode.JGE, AC, 2, PC, "Jump to TRUE if >=");
+                break;
+            case OpExp.AND:
+                emitRM(OpCode.JEQ, AC1, 1, PC, "Jump to FALSE if first operand != TRUE");
+                emitRM(OpCode.JEQ, AC2, 0, PC, "Jump to FALSE if second operand != TRUE");
+                break;
+            case OpExp.OR:
+                emitRM(OpCode.JNE, AC1, 3, PC, "Jump to TRUE if first operand == TRUE");
+                emitRM(OpCode.JEQ, AC2, 2, PC, "Jump to TRUE if second operand == TRUE");
+                break;
+            case OpExp.BNOT:
+                emitRM(OpCode.JEQ, AC1, 0, PC, "Jump to opposite value");
+                break;
+            case OpExp.EQUAL:
+                // TODO:
+                break;
+            case OpExp.NEQUAL:
+                // TODO:
+                break;
+        }
+
+        // Assign either 1 or 0 to AC if the operation is relational
+        if (exp.isRelational()) {
+            emitRM(OpCode.LDC, AC, FALSE, 0, "Load FALSE into AC");
+            emitRM(OpCode.LDA, PC, 1, PC, "Unconditional jump");
+            emitRM(OpCode.LDC, AC, TRUE, 0, "Load TRUE into AC");
         }
 
         // Store result in a new temporary
@@ -389,6 +425,7 @@ public class CodeGenerator implements AbsynVisitor {
     }
 
     public void visit(WhileExp exp, int level, boolean isAddress) {
+        int testLoc = emitLoc;
         exp.test.accept(this, level, false);
         exp.body.accept(this, level, false);
     }

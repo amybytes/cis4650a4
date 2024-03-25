@@ -104,7 +104,7 @@ truth = true|false
 "bool"             { return symbol(sym.BOOL); }
 "int"              { return symbol(sym.INT); }
 "while"            { return symbol(sym.WHILE); }
-{truth}            { return symbol(sym.TRUTH); }
+{truth}            { return symbol(sym.TRUTH, yytext()); }
 "<="               { return symbol(sym.LTE); }
 ">="               { return symbol(sym.GTE); }
 "=="               { return symbol(sym.EQUAL); }
