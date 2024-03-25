@@ -481,7 +481,11 @@ public class SemanticAnalyzer implements AbsynVisitor {
                 while (exp != null && exp.head != null) {
                     if (exp.head instanceof ReturnExp) {
                         ReturnExp rexp = (ReturnExp) exp.head;
-                        if (getType(rexp) != dec.result.type) {
+                        int type = getType(rexp);
+                        if (rexp.exp instanceof NilExp) {
+                            type = 2;
+                        }
+                        if (type != dec.result.type) {
                             reportError(rexp.exp.row, rexp.exp.col,
                                     "Return expression does not match function return type");
                         }
