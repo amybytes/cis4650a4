@@ -6,6 +6,10 @@
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 import absyn.*;
 
@@ -15,17 +19,23 @@ public class CodeGenerator implements AbsynVisitor {
     private int inputLoc, outputLoc;
     private int emitLoc = 0; // Current instruction being generated
     private int highEmitLoc = 0; // Next available space (for next instruction)
-    private int fpOffset;
+
+    private FunctionDec currentFunc = null;
+    private Map<FunctionDec, Integer> fpOffsets; // Offsets for each function
+    private List<Integer> temporaries; // Temporary memory addresses for calculations
 
     // Registers
     private int AC = 0;
     private int AC1 = 1;
+    private int AC2 = 2;
     private int FP = 5;
     private int GP = 6;
     private int PC = 7;
 
     public CodeGenerator() {
         output = new StringBuilder();
+        fpOffsets = new HashMap<FunctionDec, Integer>();
+        temporaries = new ArrayList<Integer>();
     }
 
     public void generate(Absyn tree, String outputFile) {
@@ -74,14 +84,12 @@ public class CodeGenerator implements AbsynVisitor {
             inputLoc = emitLoc;
             emitRM(OpCode.ST, AC, -1, FP, "Store return address");
             emitRO(OpCode.IN, 0, 0, 0, "Get input");
-            // emitRM(OpCode.LD, FP, 0, FP, "Load old FP");
             emitRM(OpCode.LD, PC, -1, FP, "Return back to caller");
             emitComment("Output routine");
             outputLoc = emitLoc;
             emitRM(OpCode.ST, AC, -1, FP, "Store return address");
             emitRM(OpCode.LD, 0, -2, FP, "Load output value");
             emitRO(OpCode.OUT, 0, 0, 0, "Display output");
-            // emitRM(OpCode.LD, FP, 0, FP, "Load old FP");
             emitRM(OpCode.LD, PC, -1, FP, "Return back to caller");
         });
     }
@@ -133,14 +141,23 @@ public class CodeGenerator implements AbsynVisitor {
     }
 
     private void emit(OpCode code, OpType type, int r, int s, int t, String c, boolean isAbsolute) {
+        String tempOut = null;
         if (type == OpType.RO) {
-            output.append(String.format("%3d: %5s  %d,%d,%d", emitLoc, code.toString(), r, s, t));
+            tempOut = String.format("%3d: %5s  %d,%d,%d", emitLoc, code.toString(), r, s, t);
         } else if (type == OpType.RM) {
             int arg2 = isAbsolute ? s - (emitLoc + 1) : s;
             int arg3 = isAbsolute ? PC : t;
-            output.append(String.format("%3d: %5s  %d,%d(%d)", emitLoc, code.toString(), r, arg2, arg3));
+            tempOut = String.format("%3d: %5s  %d,%d(%d)", emitLoc, code.toString(), r, arg2, arg3);
         }
-        output.append(String.format("\t%s\n", c));
+        output.append(tempOut);
+
+        // Calculate uniform spacing between instruction and comment
+        final int MAX_SPACING = 22;
+        int spaces = Math.max(MAX_SPACING - tempOut.length(), 2);
+        for (int i = 0; i < spaces; i++) {
+            output.append(" ");
+        }
+        output.append(String.format("%s\n", c));
         emitLoc++;
 
         if (highEmitLoc < emitLoc) {
@@ -156,7 +173,9 @@ public class CodeGenerator implements AbsynVisitor {
             globalOffset -= size;
         } else {
             emitComment("Processing local var: " + varDec.name);
-            varDec.offset = fpOffset--;
+            int fpOffset = getFpOffset();
+            varDec.offset = fpOffset;
+            setFpOffset(fpOffset - size);
         }
     }
 
@@ -173,38 +192,88 @@ public class CodeGenerator implements AbsynVisitor {
         return 0;
     }
 
+    private int getFpOffset() {
+        return fpOffsets.getOrDefault(currentFunc, 0);
+    }
+
+    private void setFpOffset(int offset) {
+        fpOffsets.put(currentFunc, offset);
+    }
+
+    private void setVarMemory(int val, int offset, boolean isLocal) {
+        emitRM(OpCode.LDC, AC, val, 0, "Load constant into AC");
+        emitRM(OpCode.ST, AC, offset, isLocal ? FP : GP, "Store result in memory");
+    }
+
+    private int getNextTempOffset() {
+        temporaries.add(0, getFpOffset() - temporaries.size() - 1);
+        return temporaries.get(0);
+    }
+
+    private void disposeTemporaries(int amount) {
+        while (amount-- > 0 && temporaries.size() > 0) {
+            temporaries.remove(0);
+        }
+    }
+
+    private void clearTemporaries() {
+        temporaries.clear();
+    }
+
     public void visit(NameTy type, int level, boolean isAddress) {
     }
 
-    public void visit(IndexVar var, int level, boolean isAddress) {
-        var.index.accept(this, level, false);
+    public void visit(IndexVar var, int offset, boolean isAddress) {
+        var.index.accept(this, offset, false);
     }
 
-    public void visit(SimpleVar var, int level, boolean isAddress) {
+    public void visit(SimpleVar var, int offset, boolean isAddress) {
+        // TODO: set var.temp to var dec address??
     }
 
-    public void visit(AssignExp exp, int level, boolean isAddress) {
-        exp.lhs.accept(this, level, false);
-        exp.rhs.accept(this, level, false);
+    public void visit(AssignExp exp, int offset, boolean isAddress) {
+        exp.lhs.accept(this, offset - 1, false);
+        exp.rhs.accept(this, offset - 2, isAddress);
+        VarDec dec = (VarDec) exp.dtype;
+        boolean isRightAddr = !(exp.rhs instanceof IntExp || exp.rhs instanceof BoolExp);
+        System.out.println(dec.offset + " " + dec.nestLevel);
+
+        emitComment("Evaluating assignment");
+
+        exp.temp = exp.rhs.temp;
+        emitRM(isRightAddr ? OpCode.LD : OpCode.LDC, AC, exp.rhs.temp, FP, "Loading right operand into AC");
+        emitRM(OpCode.ST, AC, dec.offset, FP, "Store final result");
+        if (isRightAddr) {
+            disposeTemporaries(1);
+        }
     }
 
-    public void visit(BoolExp exp, int level, boolean isAddress) {
+    public void visit(BoolExp exp, int offset, boolean isAddress) {
+        int value = ((BoolExp) exp).value ? 1 : 0;
+        exp.temp = value;
+        if (isAddress) {
+            setVarMemory(value, offset, true);
+        }
     }
 
-    public void visit(CallExp exp, int level, boolean isAddress) {
-        // TODO: change fpOffset to equal the negative number of arguments pushed onto
-        // the stack
-        fpOffset = -1;
-
+    public void visit(CallExp exp, int offset, boolean isAddress) {
         int callerAddr = getCallerAddr(exp);
+        int fpOffset = getFpOffset();
 
-        emitRM(OpCode.ST, FP, fpOffset - 2, FP, "Store old FP in stackframe");
-        emitRM(OpCode.LDA, FP, fpOffset - 2, FP, "Load new FP");
+        emitComment("Call to " + exp.func);
 
-        // TODO: push computed arguments onto stack and remove test and test2 arguments
-        exp.args.accept(this, level, false);
-        emitRM(OpCode.LDC, AC1, 123, 0, "test");
-        emitRM(OpCode.ST, AC1, -2, FP, "test2");
+        // Push arguments onto the stack
+        int futureFpOffset = fpOffset - 2;
+        ExpList args = exp.args;
+        while (args != null && args.head != null) {
+            System.out.println(fpOffset);
+            args.head.accept(this, futureFpOffset--, true);
+            args = args.tail;
+        }
+        // exp.args.accept(this, fpOffset - 2, false);
+
+        emitRM(OpCode.ST, FP, fpOffset, FP, "Store old FP in stackframe");
+        emitRM(OpCode.LDA, FP, fpOffset, FP, "Load new FP");
 
         emitRM(OpCode.LDA, AC, 1, PC, "Load return address into AC");
         emitRMAbs(OpCode.LDA, PC, callerAddr, "Jump to caller address");
@@ -222,23 +291,71 @@ public class CodeGenerator implements AbsynVisitor {
         exp.elsepart.accept(this, level, false);
     }
 
-    public void visit(IntExp exp, int level, boolean isAddress) {
+    public void visit(IntExp exp, int offset, boolean isAddress) {
+        int value = ((IntExp) exp).value;
+        exp.temp = value;
+        if (isAddress) {
+            setVarMemory(value, offset, true);
+        }
     }
 
-    public void visit(NilExp exp, int level, boolean isAddress) {
+    public void visit(NilExp exp, int offset, boolean isAddress) {
     }
 
-    public void visit(OpExp exp, int level, boolean isAddress) {
-        exp.left.accept(this, level, false);
-        exp.right.accept(this, level, false);
+    public void visit(OpExp exp, int offset, boolean isAddress) {
+        exp.left.accept(this, offset - 1, false);
+        exp.right.accept(this, offset - 2, false);
+
+        boolean isLeftAddr = !(exp.left instanceof IntExp || exp.left instanceof BoolExp);
+        boolean isRightAddr = !(exp.right instanceof IntExp || exp.right instanceof BoolExp);
+
+        emitComment("Evaluating " + exp.getDisplayOp() + " operation");
+
+        // Load temporaries
+        emitRM(isLeftAddr ? OpCode.LD : OpCode.LDC, AC1, exp.left.temp, FP, "Load left operand into AC1");
+        emitRM(isRightAddr ? OpCode.LD : OpCode.LDC, AC2, exp.right.temp, FP, "Load right operand into AC2");
+
+        switch (exp.op) {
+            case OpExp.ADD:
+                emitRO(OpCode.ADD, AC, AC1, AC2, "Perform addition");
+                break;
+            case OpExp.SUBT:
+                emitRO(OpCode.SUB, AC, AC1, AC2, "Perform subtraction");
+                break;
+            case OpExp.DIV:
+                // TODO: check for 0 divisor and trigger RUNTIME error
+                emitRO(OpCode.DIV, AC, AC1, AC2, "Perform division");
+                break;
+            case OpExp.MULT:
+                emitRO(OpCode.MUL, AC, AC1, AC2, "Perform multiplication");
+                break;
+        }
+
+        // Store result in a new temporary
+        int resultTemp = getNextTempOffset();
+        emitRM(OpCode.ST, AC, resultTemp, FP, "Store result in a new temporary");
+        exp.temp = resultTemp;
+
+        if (isAddress) {
+            emitRM(OpCode.ST, AC, offset, FP, "Store final result");
+            if (isLeftAddr || isRightAddr) {
+                disposeTemporaries((isLeftAddr ? 1 : 0) + (isRightAddr ? 1 : 0));
+            }
+        }
     }
 
-    public void visit(ReturnExp exp, int level, boolean isAddress) {
-        exp.exp.accept(this, level, false);
+    public void visit(ReturnExp exp, int offset, boolean isAddress) {
+        exp.exp.accept(this, offset, false);
     }
 
-    public void visit(VarExp exp, int level, boolean isAddress) {
-        exp.var.accept(this, level, false);
+    public void visit(VarExp exp, int offset, boolean isAddress) {
+        exp.var.accept(this, offset, false);
+        VarDec dec = (VarDec) exp.dtype;
+        exp.temp = dec.offset;
+        if (isAddress) {
+            emitRM(OpCode.LD, AC, dec.offset, FP, "Load var into AC");
+            emitRM(OpCode.ST, AC, offset, FP, "Store var in new location");
+        }
     }
 
     public void visit(WhileExp exp, int level, boolean isAddress) {
@@ -277,19 +394,17 @@ public class CodeGenerator implements AbsynVisitor {
 
             emitComment("Processing function: " + dec.func);
             dec.funaddr = emitLoc + 1;
+            currentFunc = dec;
+            setFpOffset(-2);
 
             backpatch("Jump around function", () -> {
-                // int previousSP = fpOffset;
-
                 emitRM(OpCode.ST, AC, -1, FP, "Store return address");
-
                 dec.params.accept(this, level + 1, false);
                 dec.body.accept(this, level, false);
-
-                // TODO: handle this stuff in return exp?
-                // fpOffset = previousSP;
                 emitRM(OpCode.LD, PC, -1, FP, "Return back to caller");
             });
+
+            currentFunc = null;
         }
     }
 

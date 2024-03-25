@@ -28,6 +28,41 @@ public class OpExp extends Exp {
         this.right = right;
     }
 
+    public String getDisplayOp() {
+        switch (op) {
+            case LT:
+                return "<";
+            case GT:
+                return ">";
+            case LTE:
+                return "<=";
+            case GTE:
+                return ">=";
+            case EQUAL:
+                return "=";
+            case NEQUAL:
+                return "!=";
+            case OR:
+                return "||";
+            case AND:
+                return "&&";
+            case BNOT:
+                return "~";
+            case ADD:
+                return "+";
+            case SUBT:
+                return "-";
+            case MULT:
+                return "*";
+            case DIV:
+                return "/";
+            case UMINUS:
+                return "-";
+            default:
+                return null;
+        }
+    }
+
     public void accept(AbsynVisitor visitor, int level, boolean isAddress) {
         visitor.visit(this, level, isAddress);
     }
