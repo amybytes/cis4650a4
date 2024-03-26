@@ -262,6 +262,8 @@ public class CodeGenerator implements AbsynVisitor {
         int callerAddr = getCallerAddr(exp);
         int fpOffset = getFpOffset();
 
+        // TODO: load exp.temp value for recursion
+
         emitComment("Call to " + exp.func);
 
         // Push arguments onto the stack
