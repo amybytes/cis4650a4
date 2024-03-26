@@ -41,7 +41,7 @@ public class OpExp extends Exp {
             case GTE:
                 return ">=";
             case EQUAL:
-                return "=";
+                return "==";
             case NEQUAL:
                 return "!=";
             case OR:
