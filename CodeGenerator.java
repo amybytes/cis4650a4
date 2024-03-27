@@ -263,13 +263,15 @@ public class CodeGenerator implements AbsynVisitor {
                 emitRM(OpCode.LD, AC1, dec.offset, dec.nestLevel > 0 ? FP : GP, "Load current offset into AC");
                 emitRM(OpCode.LDC, AC2, 1, 0, "Load 1 into AC2");
                 emitRO(OpCode.SUB, AC, AC1, AC2, "Subtract 1 from current offset");
-                emitRM(isAddr ? OpCode.LD : OpCode.LDC, AC2, var.index.temp.offset, dec.nestLevel > 0 ? FP : GP,
+                emitRM(isAddr ? OpCode.LD : OpCode.LDC, AC2, var.index.temp.offset,
+                        var.index.temp.scope == Temp.LOCAL_SCOPE ? FP : GP,
                         "Load index offset into AC2");
                 emitRO(OpCode.SUB, AC2, AC, AC2, "Subtract current and index offsets and store result in AC");
             } else {
                 // Load address by value
                 emitRM(OpCode.LDC, AC1, dec.offset - 1, 0, "Load current offset into AC1");
-                emitRM(isAddr ? OpCode.LD : OpCode.LDC, AC2, var.index.temp.offset, dec.nestLevel > 0 ? FP : GP,
+                emitRM(isAddr ? OpCode.LD : OpCode.LDC, AC2, var.index.temp.offset,
+                        var.index.temp.scope == Temp.LOCAL_SCOPE ? FP : GP,
                         "Load index offset into AC2");
                 emitRO(OpCode.SUB, AC, AC1, AC2, "Subtract current and index offsets and store result in AC");
                 emitRM(OpCode.LDA, AC1, 0, dec.nestLevel > 0 ? FP : GP, "Load FP into AC1");
@@ -495,14 +497,16 @@ public class CodeGenerator implements AbsynVisitor {
                 emitRM(OpCode.LD, AC, dec.offset, dec.nestLevel > 0 ? FP : GP, "Load current offset into AC");
                 emitRM(OpCode.LDC, AC2, 1, 0, "Load 1 into AC2");
                 emitRO(OpCode.SUB, AC1, AC, AC2, "Subtract 1 from current offset");
-                emitRM(isAddr ? OpCode.LD : OpCode.LDC, AC2, var.index.temp.offset, dec.nestLevel > 0 ? FP : GP,
+                emitRM(isAddr ? OpCode.LD : OpCode.LDC, AC2, var.index.temp.offset,
+                        var.index.temp.scope == Temp.LOCAL_SCOPE ? FP : GP,
                         "Load index offset into AC2");
                 emitRO(OpCode.SUB, AC, AC1, AC2, "Subtract current and index offsets and store result in AC");
                 emitRM(OpCode.LD, AC, 0, AC, "Load var into AC");
             } else {
                 // Load by value
                 emitRM(OpCode.LDC, AC1, dec.offset - 1, 0, "Load current offset into AC1");
-                emitRM(isAddr ? OpCode.LD : OpCode.LDC, AC2, var.index.temp.offset, dec.nestLevel > 0 ? FP : GP,
+                emitRM(isAddr ? OpCode.LD : OpCode.LDC, AC2, var.index.temp.offset,
+                        var.index.temp.scope == Temp.LOCAL_SCOPE ? FP : GP,
                         "Load index offset into AC2");
                 emitRO(OpCode.SUB, AC, AC1, AC2, "Subtract current and index offsets and store result in AC");
                 emitRM(OpCode.LDA, AC1, 0, dec.nestLevel > 0 ? FP : GP, "Load FP/GP into AC1");
