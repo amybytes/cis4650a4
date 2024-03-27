@@ -23,6 +23,7 @@ public class CodeGenerator implements AbsynVisitor {
     private FunctionDec currentFunc = null;
     private Map<FunctionDec, Integer> fpOffsets; // Offsets for each function
     private List<Temp> temporaries; // Temporary memory addresses for calculations
+    private Map<String, Integer> functionAddrs;
 
     // Registers
     private int AC = 0;
@@ -40,6 +41,7 @@ public class CodeGenerator implements AbsynVisitor {
         output = new StringBuilder();
         fpOffsets = new HashMap<FunctionDec, Integer>();
         temporaries = new ArrayList<Temp>();
+        functionAddrs = new HashMap<String, Integer>();
     }
 
     public void generate(Absyn tree, String outputFile) {
@@ -73,8 +75,8 @@ public class CodeGenerator implements AbsynVisitor {
         emitRM(OpCode.ST, AC, 0, AC, "Clear memory location 0");
     }
 
-    private void backpatch(String jmpMsg, Runnable code) {
-        int savedLocStart = emitSkip(1);
+    private void backpatch(String jmpMsg, int distance, Runnable code) {
+        int savedLocStart = emitSkip(distance);
         code.run();
         int savedLocEnd = emitSkip(0);
         emitBackup(savedLocStart);
@@ -84,7 +86,7 @@ public class CodeGenerator implements AbsynVisitor {
 
     private void generateIORoutines() {
         emitComment("Input routine");
-        backpatch("Jump over I/O routines", () -> {
+        backpatch("Jump over I/O routines", 1, () -> {
             inputLoc = emitLoc;
             emitRM(OpCode.ST, AC, -1, FP, "Store return address");
             emitRO(OpCode.IN, 0, 0, 0, "Get input");
@@ -175,6 +177,7 @@ public class CodeGenerator implements AbsynVisitor {
             emitComment("Allocating variable " + varDec.name);
             varDec.offset = globalOffset;
             globalOffset -= size;
+            System.out.println(globalOffset + " var " + varDec.name);
         } else {
             emitComment("Processing local var: " + varDec.name);
             int fpOffset = getFpOffset();
@@ -202,6 +205,14 @@ public class CodeGenerator implements AbsynVisitor {
 
     private void setFpOffset(int offset) {
         fpOffsets.put(currentFunc, offset);
+    }
+
+    private int getFunctionAddrOffset(String name) {
+        return functionAddrs.getOrDefault(name, 1);
+    }
+
+    private void setFunctionAddrOffset(String name, int offset) {
+        functionAddrs.put(name, offset);
     }
 
     private void setVarMemory(int val, int offset, boolean isLocal) {
@@ -243,15 +254,30 @@ public class CodeGenerator implements AbsynVisitor {
         emitComment("Evaluating assignment");
 
         exp.temp = exp.rhs.temp;
-        emitRM(isRightAddr ? OpCode.LD : OpCode.LDC, AC, exp.rhs.temp.offset,
-                exp.rhs.temp.scope == Temp.LOCAL_SCOPE ? FP : GP,
-                "Loading right operand into AC");
-        emitRM(OpCode.ST, AC, dec.offset, dec.nestLevel > 0 ? FP : GP, "Store final result");
+        if (exp.dtype instanceof ArrayDec) {
+            IndexVar var = (IndexVar) ((VarExp) exp.lhs).var;
+            var.index.accept(this, offset, false);
+            boolean isAddr = !(var.index instanceof IntExp || var.index instanceof BoolExp);
+            emitRM(OpCode.LDC, AC1, dec.offset, 0, "Load current offset into AC1");
+            emitRM(isAddr ? OpCode.LD : OpCode.LDC, AC2, var.index.temp.offset, dec.nestLevel > 0 ? FP : GP,
+                    "Load index offset into AC2");
+            emitRO(OpCode.SUB, AC, AC1, AC2, "Subtract current and index offsets and store result in AC");
+            emitRM(OpCode.LDA, AC1, 0, dec.nestLevel > 0 ? FP : GP, "Load FP into AC1");
+            emitRO(OpCode.ADD, AC2, AC1, AC, "Add AC1 and FP");
+            emitRM(isRightAddr ? OpCode.LD : OpCode.LDC, AC1, exp.rhs.temp.offset,
+                    exp.rhs.temp.scope == Temp.LOCAL_SCOPE ? FP : GP,
+                    "Load right operand into AC1");
+            emitRM(OpCode.ST, AC1, 0, AC2, "Store AC1 in address at AC2");
+        } else {
+            emitRM(isRightAddr ? OpCode.LD : OpCode.LDC, AC, exp.rhs.temp.offset,
+                    exp.rhs.temp.scope == Temp.LOCAL_SCOPE ? FP : GP,
+                    "Load right operand into AC");
+            emitRM(OpCode.ST, AC, dec.offset, dec.nestLevel > 0 ? FP : GP, "Store final result");
+        }
     }
 
     public void visit(BoolExp exp, int offset, boolean isAddress) {
         int value = ((BoolExp) exp).value ? 1 : 0;
-        System.out.println(value + " " + exp.value);
         exp.temp = new Temp(value, Temp.LOCAL_SCOPE);
         if (isAddress) {
             setVarMemory(value, offset, true);
@@ -260,9 +286,8 @@ public class CodeGenerator implements AbsynVisitor {
 
     public void visit(CallExp exp, int offset, boolean isAddress) {
         int callerAddr = getCallerAddr(exp);
+        int callerAddrOffset = getFunctionAddrOffset(exp.func);
         int fpOffset = getFpOffset();
-
-        // TODO: load exp.temp value for recursion
 
         emitComment("Call to " + exp.func);
 
@@ -278,7 +303,11 @@ public class CodeGenerator implements AbsynVisitor {
         emitRM(OpCode.LDA, FP, fpOffset, FP, "Load new FP");
 
         emitRM(OpCode.LDA, AC, 1, PC, "Load return address into AC");
-        emitRMAbs(OpCode.LDA, PC, callerAddr, "Jump to caller address");
+        if (callerAddr > 0) {
+            emitRMAbs(OpCode.LDA, PC, callerAddr, "Jump to caller address");
+        } else {
+            emitRM(OpCode.LD, PC, callerAddrOffset, GP, "Jump to caller address");
+        }
         emitRM(OpCode.LD, FP, 0, FP, "Load old FP");
 
         // Store result in a new temporary
@@ -339,8 +368,10 @@ public class CodeGenerator implements AbsynVisitor {
         emitComment("Evaluating " + exp.getDisplayOp() + " operation");
 
         // Load temporaries
-        emitRM(isLeftAddr ? OpCode.LD : OpCode.LDC, AC1, exp.left.temp.offset,
-                exp.left.temp.scope == Temp.LOCAL_SCOPE ? FP : GP, "Load left operand into AC1");
+        if (exp.left.temp != null) {
+            emitRM(isLeftAddr ? OpCode.LD : OpCode.LDC, AC1, exp.left.temp.offset,
+                    exp.left.temp.scope == Temp.LOCAL_SCOPE ? FP : GP, "Load left operand into AC1");
+        }
         emitRM(isRightAddr ? OpCode.LD : OpCode.LDC, AC2, exp.right.temp.offset,
                 exp.right.temp.scope == Temp.LOCAL_SCOPE ? FP : GP, "Load right operand into AC2");
 
@@ -359,7 +390,8 @@ public class CodeGenerator implements AbsynVisitor {
                 emitRO(OpCode.MUL, AC, AC1, AC2, "Perform multiplication");
                 break;
             case OpExp.UMINUS:
-                // TODO:
+                emitRM(OpCode.LDC, AC1, -1, 0, "Load -1 into AC1");
+                emitRO(OpCode.MUL, AC, AC1, AC2, "Perform negation");
                 break;
             case OpExp.LT:
                 emitRO(OpCode.SUB, AC, AC1, AC2, "Subtract operands");
@@ -387,7 +419,7 @@ public class CodeGenerator implements AbsynVisitor {
                 break;
             case OpExp.AND:
                 emitRM(OpCode.JEQ, AC1, 1, PC, "Jump to FALSE if first operand != TRUE");
-                emitRM(OpCode.JEQ, AC2, 0, PC, "Jump to FALSE if second operand != TRUE");
+                emitRM(OpCode.JNE, AC2, 2, PC, "Jump to TRUE if second operand == TRUE");
                 break;
             case OpExp.OR:
                 emitRM(OpCode.JNE, AC1, 3, PC, "Jump to TRUE if first operand == TRUE");
@@ -413,6 +445,7 @@ public class CodeGenerator implements AbsynVisitor {
         if (isAddress) {
             emitRM(OpCode.ST, AC, offset, FP, "Store final result");
             if (isLeftAddr || isRightAddr) {
+                disposeTemporaries(1);
             }
         }
     }
@@ -433,42 +466,39 @@ public class CodeGenerator implements AbsynVisitor {
         VarDec dec = (VarDec) exp.dtype;
         exp.temp = new Temp(dec.offset, dec.nestLevel > 0 ? Temp.LOCAL_SCOPE : Temp.GLOBAL_SCOPE);
         if (isAddress) {
-            emitRM(OpCode.LD, AC, dec.offset, dec.nestLevel > 0 ? FP : GP, "Load var into AC");
+            if (exp.var instanceof IndexVar) {
+                IndexVar var = (IndexVar) exp.var;
+                var.index.accept(this, offset, false);
+                boolean isAddr = !(var.index instanceof IntExp || var.index instanceof BoolExp);
+                emitRM(OpCode.LDC, AC1, dec.offset, 0, "Load current offset into AC1");
+                emitRM(isAddr ? OpCode.LD : OpCode.LDC, AC2, var.index.temp.offset, dec.nestLevel > 0 ? FP : GP,
+                        "Load index offset into AC2");
+                emitRO(OpCode.SUB, AC, AC1, AC2, "Subtract current and index offsets and store result in AC");
+                emitRM(OpCode.LDA, AC1, 0, dec.nestLevel > 0 ? FP : GP, "Load FP into AC1");
+                emitRO(OpCode.ADD, AC2, AC1, AC, "Add AC1 and FP");
+                emitRM(OpCode.LD, AC, 0, AC2, "Load var into AC");
+            } else {
+                emitRM(OpCode.LD, AC, dec.offset, dec.nestLevel > 0 ? FP : GP, "Load var into AC");
+            }
             emitRM(OpCode.ST, AC, offset, FP, "Store var in new location");
         }
     }
 
     public void visit(WhileExp exp, int offset, boolean isAddress) {
-        // int testLoc = emitLoc;
-        // exp.test.accept(this, offset, false);
-        // exp.body.accept(this, offset, false);
-
-        // int testLoc = emitSkip(1);
-        // // exp.thenpart.accept(this, offset, false);
-        // emitRM(OpCode.ST, 0, 0, 0, "Inside thenpart");
-        // int thenLoc = emitSkip(0);
-        // emitBackup(testLoc);
-        // emitRMAbs(OpCode.JNE, AC, thenLoc, "jump test");
-        // emitRestore();
-
         int testStartLoc = emitSkip(0);
         exp.test.accept(this, offset, false);
 
         int testLoc = emitSkip(2);
         exp.body.accept(this, offset, false);
-        // emitRM(OpCode.ST, 0, 0, 0, "Inside body");
 
         int thenLoc = emitSkip(0);
         int elseLocStart = emitSkip(0);
-        // exp.elsepart.accept(this, offset, false);
         emitRMAbs(OpCode.LDA, PC, testStartLoc, "Jump to test");
 
         int locEnd = emitSkip(0);
-        // emitBackup(testLoc);
         emitBackup(testLoc);
         emitRM(OpCode.LD, AC, exp.test.temp.offset, FP, "Load test into AC");
         emitRMAbs(OpCode.JEQ, AC, locEnd, "Jump to end of WHILE if FALSE");
-        // emitRMAbs(OpCode.LDA, PC, locEnd, "Jump to end of IF block");
         emitRestore();
     }
 
@@ -496,25 +526,33 @@ public class CodeGenerator implements AbsynVisitor {
     public void visit(FunctionDec dec, int level, boolean isAddress) {
         boolean isPrototype = dec.body instanceof NilExp;
 
+        if (!dec.func.equals("main") && getFunctionAddrOffset(dec.func) > 0) {
+            dec.funaddr = globalOffset--;
+            setFunctionAddrOffset(dec.func, dec.funaddr);
+            System.out.println("offset " + globalOffset + " func " + dec.func);
+        }
+
         if (!isPrototype) {
             if (dec.func.equals("main")) {
                 mainEntry = emitLoc + 1;
             }
 
             emitComment("Processing function: " + dec.func);
-            dec.funaddr = emitLoc + 1;
+            if (!dec.func.equals("main")) {
+                int funAddrOffset = getFunctionAddrOffset(dec.func);
+                emitRM(OpCode.LDC, AC, emitLoc + 3, 0, "Load function address into AC");
+                emitRM(OpCode.ST, AC, funAddrOffset, GP, "Store function address in global memory");
+            }
             currentFunc = dec;
             setFpOffset(-2);
 
-            backpatch("Jump around function", () -> {
+            backpatch("Jump around function", 1, () -> {
                 emitRM(OpCode.ST, AC, -1, FP, "Store return address");
                 dec.params.accept(this, level + 1, false);
                 dec.body.accept(this, level, false);
 
-                // Insert automatic return for void functions
-                if (dec.getType().type == NameTy.VOID) {
-                    emitRM(OpCode.LD, PC, -1, FP, "Return back to caller");
-                }
+                // Insert automatic return
+                emitRM(OpCode.LD, PC, -1, FP, "Return back to caller");
             });
 
             currentFunc = null;

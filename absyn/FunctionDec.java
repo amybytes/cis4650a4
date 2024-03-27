@@ -14,6 +14,7 @@ public class FunctionDec extends Dec {
         this.func = func;
         this.params = params;
         this.body = body;
+        funaddr = 1;
     }
 
     public String getName() {
