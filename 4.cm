@@ -1,34 +1,26 @@
 /* PROGRAM #4
-   This program generates two errors on line 23.
+   This program generates two semantic errors on line 12.
+   
+   The first error is generated because the function "func1"
+   is not declared.
 
-   The first error is generated because the third argument
-   passed to the function "func" does not match the type of
-   the third parameter in the function declaration.
+   The second error is generated because the return type of
+   func1 is unknown, so the type of the return expression can't
+   be determined.
 
-   The second error is generated because the return value
-   of the call to function "func" does not match the type
-   of variable k in the assignment.
+
+
+
+
+   TODO: update this for checkpoint 3
 */
 
-int func(int x, int y, bool z) {
-    if (z) {
-        return x + y;
-    }
-    else {
-        return x * y;
-    }
+int func2(int x, int y, bool z) {
+    return 1;
 }
 
 int main(void) {
-    int x[8];
-    int i;
-    bool k;
-
-    i = 0;
-    while (i <= 8) {
-        x[i] = i;
-        k = func(x[i], x[0], 8);
-    }
-
-    return x;
+    int k;
+    k = func2(1, 2, true);
+    return func1();
 }

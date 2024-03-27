@@ -574,7 +574,6 @@ public class CodeGenerator implements AbsynVisitor {
         if (!dec.func.equals("main") && getFunctionAddrOffset(dec.func) > 0) {
             dec.funaddr = globalOffset--;
             setFunctionAddrOffset(dec.func, dec.funaddr);
-            System.out.println("offset " + globalOffset + " func " + dec.func);
         }
 
         if (!isPrototype) {

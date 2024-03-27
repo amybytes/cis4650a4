@@ -1,41 +1,45 @@
 /* PROGRAM #5
-   This program generates three errors on lines 6, 18, and 20.
+   This program generates two errors on lines 19 and 28.
 
-   The first error is generated because the value "10" is being
-   compared with a boolean value.
+   The first error is generated because the function "func2"
+   is already declared on line 12.
 
-   The second error is generated because the variable "k" is
-   declared as a void type.
+   The second error is generated because the variable "x" is
+   already declared in the local scope on line 29.
 
-   The third error is generated because the while loop's test
-   condition must be a boolean expression, but the expression
-   "x + 10" evaluates to an integer. 
+
+
+
+
+   TODO: update this for checkpoint 3
 */
 
-int recur(int x, int i, bool a) {
-    if (a < 10) {
-        return recur(x * x, i + 1, a);
-    }
-    else {
-        return x;
-    }
+int x;
+int y;
+int z;
+
+int func2(int a) {
+    return a * 4;
+}
+
+void func1(int x, int y) {
+    output(x + y);
+    output(func2(x + y));
+}
+
+bool func2(int b) {
+    return b * 8 > 10;
 }
 
 int main(void) {
     int x;
     int y;
-    bool z;
-    void k;
+    int z;
 
-    while (x + 10) {
-        x = recur(2, 0, z);
-        y = recur(4, 5, z);
-    }
+    int x;
 
-    if (x > y) {
-        return x;
-    }
-    else {
-        return y;
-    }
+    x = (y - z) / x;
+    func1(x, z);
+
+    return x;
 }

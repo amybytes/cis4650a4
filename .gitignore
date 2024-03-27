@@ -13,6 +13,8 @@ sort.cm
 booltest.cm
 test.cm
 test2.cm
+gcdfixed.cm
+recur.cm
 Lexer.java*
 C1-Package/*
 submission/*

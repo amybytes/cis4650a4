@@ -1,20 +1,6 @@
 /* PROGRAM #2
-   This program generates two semantic errors on line 12.
-   
-   The first error is generated because the function "func1"
-   is not declared.
-
-   The second error is generated because the return type of
-   func1 is unknown, so the type of the return expression can't
-   be determined.
+   This program compiles correctly.
 */
 
-int func2(int x, int y, bool z) {
-    return 1;
-}
 
-int main(void) {
-    int k;
-    k = func2(1, 2, true);
-    return func1();
-}
+TODO:

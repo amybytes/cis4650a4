@@ -1,0 +1,48 @@
+/* PROGRAM #7
+   This program generates three errors on lines 6, 18, and 20.
+
+   The first error is generated because the value "10" is being
+   compared with a boolean value.
+
+   The second error is generated because the variable "k" is
+   declared as a void type.
+
+   The third error is generated because the while loop's test
+   condition must be a boolean expression, but the expression
+   "x + 10" evaluates to an integer. 
+
+
+
+
+
+
+   TODO: update this for checkpoint 3
+*/
+
+int recur(int x, int i, bool a) {
+    if (a < 10) {
+        return recur(x * x, i + 1, a);
+    }
+    else {
+        return x;
+    }
+}
+
+int main(void) {
+    int x;
+    int y;
+    bool z;
+    void k;
+
+    while (x + 10) {
+        x = recur(2, 0, z);
+        y = recur(4, 5, z);
+    }
+
+    if (x > y) {
+        return x;
+    }
+    else {
+        return y;
+    }
+}
