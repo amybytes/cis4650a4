@@ -177,7 +177,6 @@ public class CodeGenerator implements AbsynVisitor {
             emitComment("Allocating variable " + varDec.name);
             varDec.offset = globalOffset;
             globalOffset -= size;
-            System.out.println(globalOffset + " var " + varDec.name);
         } else {
             emitComment("Processing local var: " + varDec.name);
             int fpOffset = getFpOffset();
@@ -258,12 +257,24 @@ public class CodeGenerator implements AbsynVisitor {
             IndexVar var = (IndexVar) ((VarExp) exp.lhs).var;
             var.index.accept(this, offset, false);
             boolean isAddr = !(var.index instanceof IntExp || var.index instanceof BoolExp);
-            emitRM(OpCode.LDC, AC1, dec.offset, 0, "Load current offset into AC1");
-            emitRM(isAddr ? OpCode.LD : OpCode.LDC, AC2, var.index.temp.offset, dec.nestLevel > 0 ? FP : GP,
-                    "Load index offset into AC2");
-            emitRO(OpCode.SUB, AC, AC1, AC2, "Subtract current and index offsets and store result in AC");
-            emitRM(OpCode.LDA, AC1, 0, dec.nestLevel > 0 ? FP : GP, "Load FP into AC1");
-            emitRO(OpCode.ADD, AC2, AC1, AC, "Add AC1 and FP");
+
+            if (dec instanceof ArrayDec && ((ArrayDec) dec).size == ArrayDec.UNKNOWN_SIZE) {
+                // Load address by reference
+                emitRM(OpCode.LD, AC1, dec.offset, dec.nestLevel > 0 ? FP : GP, "Load current offset into AC");
+                emitRM(OpCode.LDC, AC2, 1, 0, "Load 1 into AC2");
+                emitRO(OpCode.SUB, AC, AC1, AC2, "Subtract 1 from current offset");
+                emitRM(isAddr ? OpCode.LD : OpCode.LDC, AC2, var.index.temp.offset, dec.nestLevel > 0 ? FP : GP,
+                        "Load index offset into AC2");
+                emitRO(OpCode.SUB, AC2, AC, AC2, "Subtract current and index offsets and store result in AC");
+            } else {
+                // Load address by value
+                emitRM(OpCode.LDC, AC1, dec.offset - 1, 0, "Load current offset into AC1");
+                emitRM(isAddr ? OpCode.LD : OpCode.LDC, AC2, var.index.temp.offset, dec.nestLevel > 0 ? FP : GP,
+                        "Load index offset into AC2");
+                emitRO(OpCode.SUB, AC, AC1, AC2, "Subtract current and index offsets and store result in AC");
+                emitRM(OpCode.LDA, AC1, 0, dec.nestLevel > 0 ? FP : GP, "Load FP into AC1");
+                emitRO(OpCode.ADD, AC2, AC1, AC, "Add AC1 and FP");
+            }
             emitRM(isRightAddr ? OpCode.LD : OpCode.LDC, AC1, exp.rhs.temp.offset,
                     exp.rhs.temp.scope == Temp.LOCAL_SCOPE ? FP : GP,
                     "Load right operand into AC1");
@@ -293,10 +304,21 @@ public class CodeGenerator implements AbsynVisitor {
 
         // Push arguments onto the stack
         int futureFpOffset = fpOffset - 2;
+        FunctionDec functionDec = (FunctionDec) exp.dtype;
+        VarDecList params = functionDec.params;
         ExpList args = exp.args;
         while (args != null && args.head != null) {
+            if (params.head instanceof ArrayDec && args.head instanceof VarExp) {
+                // Pass nest level to params when passing by reference
+                ArrayDec paramDec = (ArrayDec) params.head;
+                VarExp argExp = (VarExp) args.head;
+                ArrayDec argDec = (ArrayDec) argExp.dtype;
+                paramDec.nestLevel = argDec.nestLevel;
+                paramDec.offset = argDec.offset;
+            }
             args.head.accept(this, futureFpOffset--, true);
             args = args.tail;
+            params = params.tail;
         }
 
         emitRM(OpCode.ST, FP, fpOffset, FP, "Store old FP in stackframe");
@@ -464,24 +486,43 @@ public class CodeGenerator implements AbsynVisitor {
     public void visit(VarExp exp, int offset, boolean isAddress) {
         exp.var.accept(this, offset, false);
         VarDec dec = (VarDec) exp.dtype;
-        exp.temp = new Temp(dec.offset, dec.nestLevel > 0 ? Temp.LOCAL_SCOPE : Temp.GLOBAL_SCOPE);
-        if (isAddress) {
-            if (exp.var instanceof IndexVar) {
-                IndexVar var = (IndexVar) exp.var;
-                var.index.accept(this, offset, false);
-                boolean isAddr = !(var.index instanceof IntExp || var.index instanceof BoolExp);
-                emitRM(OpCode.LDC, AC1, dec.offset, 0, "Load current offset into AC1");
+        if (exp.var instanceof IndexVar) {
+            IndexVar var = (IndexVar) exp.var;
+            var.index.accept(this, offset, false);
+            boolean isAddr = !(var.index instanceof IntExp || var.index instanceof BoolExp);
+            if (dec instanceof ArrayDec && ((ArrayDec) dec).size == ArrayDec.UNKNOWN_SIZE) {
+                // Load by reference
+                emitRM(OpCode.LD, AC, dec.offset, dec.nestLevel > 0 ? FP : GP, "Load current offset into AC");
+                emitRM(OpCode.LDC, AC2, 1, 0, "Load 1 into AC2");
+                emitRO(OpCode.SUB, AC1, AC, AC2, "Subtract 1 from current offset");
                 emitRM(isAddr ? OpCode.LD : OpCode.LDC, AC2, var.index.temp.offset, dec.nestLevel > 0 ? FP : GP,
                         "Load index offset into AC2");
                 emitRO(OpCode.SUB, AC, AC1, AC2, "Subtract current and index offsets and store result in AC");
-                emitRM(OpCode.LDA, AC1, 0, dec.nestLevel > 0 ? FP : GP, "Load FP into AC1");
+                emitRM(OpCode.LD, AC, 0, AC, "Load var into AC");
+            } else {
+                // Load by value
+                emitRM(OpCode.LDC, AC1, dec.offset - 1, 0, "Load current offset into AC1");
+                emitRM(isAddr ? OpCode.LD : OpCode.LDC, AC2, var.index.temp.offset, dec.nestLevel > 0 ? FP : GP,
+                        "Load index offset into AC2");
+                emitRO(OpCode.SUB, AC, AC1, AC2, "Subtract current and index offsets and store result in AC");
+                emitRM(OpCode.LDA, AC1, 0, dec.nestLevel > 0 ? FP : GP, "Load FP/GP into AC1");
                 emitRO(OpCode.ADD, AC2, AC1, AC, "Add AC1 and FP");
                 emitRM(OpCode.LD, AC, 0, AC2, "Load var into AC");
-            } else {
-                emitRM(OpCode.LD, AC, dec.offset, dec.nestLevel > 0 ? FP : GP, "Load var into AC");
             }
+        } else if (dec instanceof ArrayDec && exp.var instanceof SimpleVar
+                && ((ArrayDec) dec).size != ArrayDec.UNKNOWN_SIZE) {
+            // Pass by reference
+            emitRM(OpCode.LDA, AC, dec.offset, dec.nestLevel > 0 ? FP : GP, "Load array address into AC");
+            emitRM(OpCode.ST, AC, offset, FP, "Store array address in new location");
+        } else {
+            // Pass by value
+            emitRM(OpCode.LD, AC, dec.offset, dec.nestLevel > 0 ? FP : GP, "Load var into AC");
+        }
+        if (isAddress) {
             emitRM(OpCode.ST, AC, offset, FP, "Store var in new location");
         }
+        exp.temp = getNextTempOffset();
+        emitRM(OpCode.ST, AC, exp.temp.offset, FP, "Store result in a new temporary");
     }
 
     public void visit(WhileExp exp, int offset, boolean isAddress) {
@@ -560,7 +601,11 @@ public class CodeGenerator implements AbsynVisitor {
     }
 
     public void visit(ArrayDec varDec, int level, boolean isAddress) {
-        allocateVar(varDec, level, varDec.size);
+        allocateVar(varDec, level, varDec.size != ArrayDec.UNKNOWN_SIZE ? varDec.size + 1 : 1);
+        if (varDec.size != ArrayDec.UNKNOWN_SIZE) {
+            emitRM(OpCode.LDC, AC, varDec.size, 0, "Load array size into AC");
+            emitRM(OpCode.ST, AC, varDec.offset, varDec.nestLevel > 0 ? FP : GP, "Store array size at start of array");
+        }
     }
 
     public void visit(SimpleDec varDec, int level, boolean isAddress) {
