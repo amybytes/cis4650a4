@@ -52,8 +52,10 @@ class CM {
                     semAnalyzer.analyze((DecList) result, symbolTableFile);
                 }
 
-                if (generateCode(args)) {
+                if (generateCode(args) && semAnalyzer.getNumErrors() == 0) {
                     codeGenerator.generate(result, codeGenFile);
+                } else if (semAnalyzer.getNumErrors() > 0) {
+                    System.out.println("\nErrors in semantic analysis. Aborting code generation.");
                 }
             }
         } catch (FileNotFoundException e) {

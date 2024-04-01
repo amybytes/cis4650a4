@@ -18,6 +18,7 @@ public class SemanticAnalyzer implements AbsynVisitor {
     public Map<String, List<NodeType>> symbolTable;
 
     private StringBuilder output;
+    private int numErrors;
 
     private final int SPACES = 4;
     private final String MAIN_FUNCTION_NAME = "main";
@@ -27,6 +28,7 @@ public class SemanticAnalyzer implements AbsynVisitor {
     }
 
     public void analyze(DecList program, String outputFile) {
+        numErrors = 0;
         output = new StringBuilder();
         output.append("Entering the global scope:\n");
         program.accept(this, ROOT_LEVEL + 1, false);
@@ -40,6 +42,10 @@ public class SemanticAnalyzer implements AbsynVisitor {
         if (outputFile != null && writeFile(outputFile)) {
             System.out.println("Symbol table written to \"" + outputFile + "\".");
         }
+    }
+
+    public int getNumErrors() {
+        return numErrors;
     }
 
     private boolean writeFile(String outputFile) {
@@ -79,10 +85,12 @@ public class SemanticAnalyzer implements AbsynVisitor {
 
     private void reportError(int row, int col, String msg) {
         System.err.println("Error on line " + (row + 1) + ", column " + (col + 1) + ": " + msg);
+        numErrors++;
     }
 
     private void reportError(String msg) {
         System.err.println("Error: " + msg);
+        numErrors++;
     }
 
     private boolean isMainDeclared() {

@@ -9,7 +9,7 @@ int func1(int a, int b) {
     return (a + b) / 4;
 }
 
-int main(void) {
+void main(void) {
     int x;
     int y;
 

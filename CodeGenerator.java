@@ -29,6 +29,7 @@ public class CodeGenerator implements AbsynVisitor {
     private int AC = 0;
     private int AC1 = 1;
     private int AC2 = 2;
+    private int AC3 = 3;
     private int FP = 5;
     private int GP = 6;
     private int PC = 7;
@@ -36,6 +37,11 @@ public class CodeGenerator implements AbsynVisitor {
     // Boolean constants
     private int TRUE = 1;
     private int FALSE = 0;
+
+    // Runtime error codes
+    private int OUT_OF_RANGE_BELOW_ERROR = -1000000;
+    private int OUT_OF_RANGE_ABOVE_ERROR = -2000000;
+    private int DIV_BY_ZERO_ERROR = -3000000;
 
     public CodeGenerator() {
         output = new StringBuilder();
@@ -94,7 +100,7 @@ public class CodeGenerator implements AbsynVisitor {
             emitComment("Output routine");
             outputLoc = emitLoc;
             emitRM(OpCode.ST, AC, -1, FP, "Store return address");
-            emitRM(OpCode.LD, 0, -2, FP, "Load output value");
+            emitRM(OpCode.LD, AC, -2, FP, "Load output value");
             emitRO(OpCode.OUT, 0, 0, 0, "Display output");
             emitRM(OpCode.LD, PC, -1, FP, "Return back to caller");
         });
@@ -407,7 +413,10 @@ public class CodeGenerator implements AbsynVisitor {
                 emitRO(OpCode.SUB, AC, AC1, AC2, "Perform subtraction");
                 break;
             case OpExp.DIV:
-                // TODO: check for 0 divisor and trigger RUNTIME error
+                emitRM(OpCode.JNE, AC2, 3, PC, "Jump over runtime error code if divisor is not 0");
+                emitRM(OpCode.LDC, AC, DIV_BY_ZERO_ERROR, 0, "Load error code into AC");
+                emitRO(OpCode.OUT, AC, 0, 0, "Display error code");
+                emitRO(OpCode.HALT, 0, 0, 0, "Runtime error");
                 emitRO(OpCode.DIV, AC, AC1, AC2, "Perform division");
                 break;
             case OpExp.MULT:
@@ -492,15 +501,33 @@ public class CodeGenerator implements AbsynVisitor {
             IndexVar var = (IndexVar) exp.var;
             var.index.accept(this, offset, false);
             boolean isAddr = !(var.index instanceof IntExp || var.index instanceof BoolExp);
+
             if (dec instanceof ArrayDec && ((ArrayDec) dec).size == ArrayDec.UNKNOWN_SIZE) {
                 // Load by reference
                 emitRM(OpCode.LD, AC, dec.offset, dec.nestLevel > 0 ? FP : GP, "Load current offset into AC");
+                emitRM(OpCode.LD, AC3, 0, AC, "Load array size into AC3");
                 emitRM(OpCode.LDC, AC2, 1, 0, "Load 1 into AC2");
                 emitRO(OpCode.SUB, AC1, AC, AC2, "Subtract 1 from current offset");
                 emitRM(isAddr ? OpCode.LD : OpCode.LDC, AC2, var.index.temp.offset,
                         var.index.temp.scope == Temp.LOCAL_SCOPE ? FP : GP,
                         "Load index offset into AC2");
+
+                // Check lower bound
+                emitRM(OpCode.JGE, AC2, 3, PC, "Jump over runtime error code if index is above min bound");
+                emitRM(OpCode.LDC, AC, OUT_OF_RANGE_BELOW_ERROR, 0, "Load runtime error code into AC");
+                emitRO(OpCode.OUT, AC, 0, 0, "Display runtime error code");
+                emitRO(OpCode.HALT, 0, 0, 0, "Runtime error");
+
                 emitRO(OpCode.SUB, AC, AC1, AC2, "Subtract current and index offsets and store result in AC");
+
+                // Check upper bound
+                emitRO(OpCode.SUB, AC3, AC1, AC3, "Calculate max array address");
+                emitRO(OpCode.SUB, AC2, AC, AC3, "Subtract max index from index");
+                emitRM(OpCode.JGT, AC2, 3, PC, "Jump over runtime error code if index is below max bound");
+                emitRM(OpCode.LDC, AC, OUT_OF_RANGE_ABOVE_ERROR, 0, "Load runtime error code into AC");
+                emitRO(OpCode.OUT, AC, 0, 0, "Display runtime error code");
+                emitRO(OpCode.HALT, 0, 0, 0, "Runtime error");
+
                 emitRM(OpCode.LD, AC, 0, AC, "Load var into AC");
             } else {
                 // Load by value
@@ -509,6 +536,21 @@ public class CodeGenerator implements AbsynVisitor {
                         var.index.temp.scope == Temp.LOCAL_SCOPE ? FP : GP,
                         "Load index offset into AC2");
                 emitRO(OpCode.SUB, AC, AC1, AC2, "Subtract current and index offsets and store result in AC");
+
+                // Check lower bound
+                emitRM(OpCode.JGE, AC2, 3, PC, "Jump over runtime error code if index is above min bound");
+                emitRM(OpCode.LDC, AC, OUT_OF_RANGE_BELOW_ERROR, 0, "Load runtime error code into AC");
+                emitRO(OpCode.OUT, AC, 0, 0, "Display runtime error code");
+                emitRO(OpCode.HALT, 0, 0, 0, "Runtime error");
+
+                // Check upper bound
+                emitRO(OpCode.LD, AC3, dec.offset, dec.nestLevel > 0 ? FP : GP, "Load max array size into AC3");
+                emitRO(OpCode.SUB, AC1, AC2, AC3, "Subtract max index from index");
+                emitRM(OpCode.JLT, AC1, 3, PC, "Jump over runtime error code if index is below max bound");
+                emitRM(OpCode.LDC, AC, OUT_OF_RANGE_ABOVE_ERROR, 0, "Load runtime error code into AC");
+                emitRO(OpCode.OUT, AC, 0, 0, "Display runtime error code");
+                emitRO(OpCode.HALT, 0, 0, 0, "Runtime error");
+
                 emitRM(OpCode.LDA, AC1, 0, dec.nestLevel > 0 ? FP : GP, "Load FP/GP into AC1");
                 emitRO(OpCode.ADD, AC2, AC1, AC, "Add AC1 and FP");
                 emitRM(OpCode.LD, AC, 0, AC2, "Load var into AC");

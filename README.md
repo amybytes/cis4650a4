@@ -17,5 +17,10 @@ Passign the `-c` option to the program causes the generated code to be written t
 
 For example: `java -cp /usr/share/java/cup.jar:. CM program.cm -c` scans, parses, and generates the assembly code for the input file "program.cm".
 
+## Runtime Error Codes
+- -1000000: Index out of bounds (too low)
+- -2000000: Index out of bounds (too high)
+- -3000000: Division by zero
+
 ## Additional Notes
 - Array types in function parameters are arbitrarily assigned a size of -1, meaning the size is not yet known.
