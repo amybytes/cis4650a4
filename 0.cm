@@ -1,3 +1,44 @@
 /* PROGRAM #0
-   TODO: update this for checkpoint 3
+   This program generates a syntactic error on line 25
+   and four semantic errors on lines 31 and 39.
+
+   The first error is generated because the local
+   variable "b" is missing a semicolon.
+
+   The second error is generated because the variable
+   "arr" is already declared on line 27.
+
+   The third error is generated because the second
+   argument passed to the function "getI" is used
+   before it is declared.
+
+   The fourth error is generated because the second
+   argument passed to the function "getI" does not
+   match the function declaration.
 */
+
+bool getI(int k) {
+   return ((k * 16) / 4 + 8) > (k * 24);
+}
+
+void main(void) {
+   int b
+
+   bool arr[2];
+   int x;
+   int y;
+   int z;
+   bool arr[10];
+
+   x = 0;
+   y = 10;
+   while (x < y) {
+      arr[x] = getI(x + y);
+      
+      if (arr[x]) {
+         arr[x] = getI(arr[x], k);
+      }
+      
+      x = x + 1;
+   }
+}

@@ -1,6 +1,30 @@
 /* PROGRAM #2
    This program compiles correctly.
+
+   Tests recursive functions, conditional control blocks,
+   relational operator expressions, and nested function calls.
+
+   The output is the number of recursive calls made to
+   the function "recur".
 */
 
+int recur(int x, int count) {
+   if (x > 1) {
+      return recur(x - 1, count + 1);
+   }
+   
+   if (x < 1) {
+      return recur(x + 1, count + 1);
+   }
 
-TODO:
+   return count;
+}
+
+void main(void) {
+   int a;
+
+   a = input() / 2;
+   output(recur(a, 0));
+   
+   return;
+}

@@ -1,20 +1,17 @@
 /* PROGRAM #6
-   This program generates two errors on line 23.
+   This program generates one syntactic error on line 26 and
+   two semantic errors on line 36.
 
-   The first error is generated because the third argument
+   The first error is generated because the function "func2"
+   is declared without any parameters (or "void").
+
+   The second error is generated because the third argument
    passed to the function "func" does not match the type of
    the third parameter in the function declaration.
 
-   The second error is generated because the return value
+   The third error is generated because the return value
    of the call to function "func" does not match the type
    of variable k in the assignment.
-
-
-
-
-
-
-   TODO: update this for checkpoint 3
 */
 
 int func(int x, int y, bool z) {
@@ -25,6 +22,8 @@ int func(int x, int y, bool z) {
         return x * y;
     }
 }
+
+int func2();
 
 int main(void) {
     int x[8];

@@ -1,6 +1,27 @@
 /* PROGRAM #3
    This program compiles correctly.
+
+   Tests arrays, global variables, passing arguments by reference,
+   while loops, relational operator expressions, and runtime errors.
+
+   The output is input value + 1, or -1000000 (runtime error) if
+   the input value is less than 0, or -2000000 (runtime error) if
+   the input value is greater than 7.
 */
 
+int arr[8];
 
-TODO:
+int init(int x[], int size) {
+   while (size > 0) {
+      x[size-1] = size;
+      size = size - 1;
+   }
+}
+
+void main(void) {
+   int inp;
+
+   init(arr, 8);
+   inp = input();
+   output(arr[inp]);
+}

@@ -1,3 +1,41 @@
 /* PROGRAM #8
-   TODO: update this for checkpoint 3
+   This program generates syntactic errors on
+   lines 16 and 17, and one semantic error on line 33.
+
+   The first error is generated because a semicolon is
+   not included at the end of the variable declaration.
+
+   The second error is generated because the array size
+   is not specified.
+
+   The third error is generated because the type of the
+   RHS of the expression does not match the type of the
+   LHS of the expression.
 */
+
+int a
+int b[];
+
+int recur(int x, int i) {
+    if (i < 10) {
+        return recur(x * x, i + 1);
+    }
+    else {
+        return x;
+    }
+}
+
+void main(void) {
+    int x;
+    int y;
+
+    x = recur(2, 0);
+    y = true;
+
+    if (x > y) {
+        output(x);
+    }
+    else {
+        output(y);
+    }
+}

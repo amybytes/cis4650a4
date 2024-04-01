@@ -1,3 +1,38 @@
 /* PROGRAM #9
-   TODO: update this for checkpoint 3
+   This program generates four semantic errors on
+   lines 21, 24, and 34.
+   
+   The first error is generated because the "void"
+   type is not valid for arrays.
+
+   The second error is generated because the expression
+   (p + 2) cannot be compared with the boolean variable
+   "b" using the ">" operator.
+
+   The third error is generated because the integer
+   return type of the function "test" does not match the
+   boolean type of the ">" operator.
+
+   The fourth error is generated because the type of the
+   condition for the if statement is not boolean.
 */
+
+bool b;
+void b2[2];
+
+int test(int p) {
+   return (p + 2) > b;
+}
+
+void main(void) {
+   int x;
+   
+   x = input();
+   b = false;
+   
+   while (~b) {
+      if (test(x)) {
+         b = true;
+      }
+   }
+}

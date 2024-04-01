@@ -1,5 +1,5 @@
 /* PROGRAM #7
-   This program generates three errors on lines 6, 18, and 20.
+   This program generates three semantic errors on lines 16, 28, and 30.
 
    The first error is generated because the value "10" is being
    compared with a boolean value.
@@ -9,14 +9,7 @@
 
    The third error is generated because the while loop's test
    condition must be a boolean expression, but the expression
-   "x + 10" evaluates to an integer. 
-
-
-
-
-
-
-   TODO: update this for checkpoint 3
+   "x + 10" evaluates to an integer.
 */
 
 int recur(int x, int i, bool a) {

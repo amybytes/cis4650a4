@@ -1,5 +1,10 @@
 /* PROGRAM #1
    This program compiles correctly.
+
+   Tests variable declarations, assignments, operator expressions,
+   and function calls.
+
+   The output is 25.
 */
 
 int x;

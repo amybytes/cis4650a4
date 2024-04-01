@@ -1,17 +1,11 @@
 /* PROGRAM #5
-   This program generates two errors on lines 19 and 28.
+   This program generates two semantic errors on lines 24 and 33.
 
    The first error is generated because the function "func2"
-   is already declared on line 12.
+   is already declared on line 15.
 
    The second error is generated because the variable "x" is
    already declared in the local scope on line 29.
-
-
-
-
-
-   TODO: update this for checkpoint 3
 */
 
 int x;
@@ -31,7 +25,7 @@ bool func2(int b) {
     return b * 8 > 10;
 }
 
-int main(void) {
+void main(void) {
     int x;
     int y;
     int z;
@@ -41,5 +35,5 @@ int main(void) {
     x = (y - z) / x;
     func1(x, z);
 
-    return x;
+    output(x);
 }

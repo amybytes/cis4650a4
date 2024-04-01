@@ -1,5 +1,5 @@
 /* PROGRAM #4
-   This program generates two semantic errors on line 12.
+   This program generates two semantic errors on line 19.
    
    The first error is generated because the function "func1"
    is not declared.
@@ -7,12 +7,6 @@
    The second error is generated because the return type of
    func1 is unknown, so the type of the return expression can't
    be determined.
-
-
-
-
-
-   TODO: update this for checkpoint 3
 */
 
 int func2(int x, int y, bool z) {
